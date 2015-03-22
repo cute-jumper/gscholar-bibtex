@@ -1,0 +1,10 @@
+* gscholar bibtex
+  Retrieve bibtex entry from Google Scholar by your query. All in Emacs-lisp!
+
+  Usage:
+  : (add-to-list 'load-path "/path/to/gscholar-bibtex.el")
+  : (require 'gscholar-bibtex)
+  : M-x gscholar-bibtex
+
+  Then enter your query and select the results.
+  
