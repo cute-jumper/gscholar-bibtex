@@ -46,7 +46,7 @@
   "Buffer name for bibtex entry")
 
 (defvar gscholar-bibtex-help
-  "[n] next; [p] previous; [TAB] get bibtex; [A] append to database; [a] append to file; [w] write to file; [c] close bibtex entry window; [q] quit;"
+  "[n/p] next/previous; [TAB] show bibtex entry; [A/W] append/write to database; [a/w] append/write to file; [c] close bibtex entry window; [q] quit;"
   "Help string for gscholar bibtex")
 
 ;; Face related
@@ -59,8 +59,14 @@
   "Face for subtitle")
 
 (defvar gcholar-bibtex-highlight-item-overlay
-  (make-overlay 1 1)
+  (let ((ov (make-overlay 1 1)))
+    (overlay-put ov 'face 'highlight)
+    ov)
   "Overlay for item highlight")
+
+(defun gscholar-bibtex--move-to-line (N)
+  (goto-char (point-min))
+  (forward-line (1- N)))
 
 (defun gscholar-bibtex-prettify-title (s)
   (propertize s 'face 'gscholar-bibtex-title))
@@ -68,15 +74,12 @@
 (defun gscholar-bibtex-prettify-subtitle (s)
   (propertize s 'face 'gscholar-bibtex-subtitle))
 
-(overlay-put gcholar-bibtex-highlight-item-overlay 'face 'highlight)
-
 (defun gscholar-bibtex-highlight-current-item-hook ()
   (save-excursion
     (let* ((line (gscholar-bibtex--current-beginning-line))
-           (beg (progn (goto-line line) (point)))
-           (end (progn (goto-line (+ line 3)) (point))))
-      (move-overlay gcholar-bibtex-highlight-item-overlay beg end (current-buffer))
-      (message gscholar-bibtex-help))))
+           (beg (progn (gscholar-bibtex--move-to-line line) (point)))
+           (end (progn (gscholar-bibtex--move-to-line (+ line 3)) (point))))
+      (move-overlay gcholar-bibtex-highlight-item-overlay beg end (current-buffer)))))
 
 ;; Major mode
 (setq gscholar-bibtex-local-mode-map
@@ -85,16 +88,18 @@
         (define-key map "p" 'gscholar-bibtex-previous-item)
         (define-key map (kbd "<tab>") 'gscholar-bibtex-retrieve-bibtex)
         (define-key map "A" 'gscholar-bibtex-append-bibtex-to-database)
+        (define-key map "W" 'gscholar-bibtex-write-bibtex-to-database)
         (define-key map "a" 'gscholar-bibtex-append-bibtex-to-file)
         (define-key map "w" 'gscholar-bibtex-write-bibtex-to-file)
         (define-key map "c" 'gcholar-bibtex-quit-entry-window)
         (define-key map "q" 'gscholar-bibtex-quit-gscholar-window)
         map))
 
-(define-derived-mode gscholar-bibtex-mode fundamental-mode "gscholar bibtex"
+(define-derived-mode gscholar-bibtex-mode fundamental-mode "gscholar bibtex"  
   (use-local-map gscholar-bibtex-local-mode-map)
   (setq buffer-read-only t)
   (setq cursor-type 'bar)
+  (add-hook 'pre-command-hook '(lambda () (message gscholar-bibtex-help)) nil t)
   (add-hook 'post-command-hook 'gscholar-bibtex-highlight-current-item-hook nil t))
 
 (defun gscholar-bibtex-string-trim (str)
@@ -113,12 +118,12 @@
 (defun gscholar-bibtex-next-item ()
   (interactive)
   (gscholar-bibtex-guard)
-  (goto-line (+ (gscholar-bibtex--current-beginning-line) gscholar-bibtex-item-height)))
+  (gscholar-bibtex--move-to-line (+ (gscholar-bibtex--current-beginning-line) gscholar-bibtex-item-height)))
 
 (defun gscholar-bibtex-previous-item ()
   (interactive)
   (gscholar-bibtex-guard)
-  (goto-line (- (gscholar-bibtex--current-beginning-line) gscholar-bibtex-item-height)))
+  (gscholar-bibtex--move-to-line (- (gscholar-bibtex--current-beginning-line) gscholar-bibtex-item-height)))
 
 (defun gscholar-bibtex-retrieve-bibtex ()
   (interactive)
@@ -139,21 +144,27 @@
       (erase-buffer)
       (insert bibtex-entry)
       (bibtex-mode)
-      (beginning-of-buffer))
+      (goto-char (point-min)))
     (unless entry-window
       (select-window (split-window-below))
       (switch-to-buffer entry-buffer)
       (select-window gscholar-window))))
 
-(defun gscholar-bibtex-append-bibtex-to-database ()
-  (interactive)
+(defun gscholar-bibtex--write-bibtex-to-file-impl (&optional append)
   (gscholar-bibtex-guard)
   (gscholar-bibtex-retrieve-bibtex)
   (if gscholar-bibtex-database-file
       (with-current-buffer (get-buffer gscholar-bibtex-entry-buffer-name)
-        (write-region nil nil gscholar-bibtex-database-file t))
-    (message "Please set `gscholar-bibtex-database-file' first.")))
+        (write-region nil nil gscholar-bibtex-database-file append))
+    (error "Please set `gscholar-bibtex-database-file' first.")))
 
+(defun gscholar-bibtex-append-bibtex-to-database ()
+  (interactive)
+  (gscholar-bibtex--write-bibtex-to-file-impl t))
+
+(defun gscholar-bibtex-write-bibtex-to-database ()
+  (interactive)
+  (gscholar-bibtex--write-bibtex-to-file-impl nil))
 
 (defun gscholar-bibtex-append-bibtex-to-file ()
   (interactive)
@@ -169,11 +180,11 @@
 (defun gscholar-bibtex-write-bibtex-to-file ()
   (interactive)
   (gscholar-bibtex-guard)
-  (gscholar-bibtex-retrieve-bibtex)  
+  (gscholar-bibtex-retrieve-bibtex)
   (with-current-buffer (get-buffer gscholar-bibtex-entry-buffer-name)
     (write-region nil nil (call-interactively '(lambda (filename)
-                                       (interactive "FWrite bibtex entry to file: ")
-                                       filename)))))
+                                                 (interactive "FWrite bibtex entry to file: ")
+                                                 filename)))))
 
 (defun gcholar-bibtex-quit-entry-window ()
   (interactive)
@@ -193,13 +204,13 @@
       (select-window entry-window)
       (delete-window)
       (select-window gscholar-window))
-    (if caller-window
-        (progn
-          (delete-window)
-          (select-window caller-window))
-      (if (buffer-live-p gscholar-bibtex-caller-buffer)
-          (switch-to-buffer gscholar-bibtex-caller-buffer)
-        (next-buffer)))))
+    (if (or (eq caller-window gscholar-window)
+            (eq caller-window entry-window)
+            (not (buffer-live-p gscholar-bibtex-caller-buffer)))
+        (next-buffer)
+      (if caller-window
+          (progn (delete-window) (select-window caller-window))
+        (switch-to-buffer gscholar-bibtex-caller-buffer)))))
 
 (defun gscholar-bibtex-delete-response-header ()
   "Delete response's header in order to feed into libxml parser"
@@ -262,7 +273,7 @@
                                (concat  "http://scholar.google.com/scholar?q="
                                         (url-hexify-string
                                          (replace-regexp-in-string " " "\+" query)))))
-         (buf (get-buffer-create "scholar")))
+         (gscholar-buffer (get-buffer-create "scholar")))
     (with-current-buffer query-result-buffer
       (gscholar-bibtex-delete-response-header))
     (setq gscholar-bibtex-caller-buffer (current-buffer))
@@ -270,19 +281,21 @@
     (setq titles (gscholar-bibtex-get-titles query-result-buffer))
     (setq subtitles (gscholar-bibtex-get-subtitles query-result-buffer))
     (setq gscholar-bibtex-entries-cache (make-vector (length gscholar-bibtex-urls-cache) ""))
-    (switch-to-buffer-other-window buf)
+    (unless (get-buffer-window gscholar-buffer)
+      (switch-to-buffer-other-window gscholar-buffer))
     (setq buffer-read-only nil)
     (erase-buffer)
-    (beginning-of-buffer)
+    (goto-char (point-min))
     (dotimes (i (length titles))
       (insert "* " (gscholar-bibtex-prettify-title (nth i titles)))
       (newline-and-indent)
       (insert "  " (gscholar-bibtex-prettify-subtitle (nth i subtitles)) "\n\n"))
-    (beginning-of-buffer)
+    (goto-char (point-min))
     (gscholar-bibtex-mode)))
 
-(when (boundp 'evil-emacs-state-modes)
+(when (and (boundp 'evil-emacs-state-modes)
+           (not (member 'gscholar-bibtex-mode evil-emacs-state-modes)))
   (add-to-list 'evil-emacs-state-modes 'gscholar-bibtex-mode))
 
 (provide 'gscholar-bibtex)
-;;; gscholar-bibtex.el ends herek
+;;; gscholar-bibtex.el ends here
