@@ -1,4 +1,4 @@
-;;; gscholar-bibtex.el --- Retrieve bibtex from Google Scholar
+;;; gscholar-bibtex.el --- Retrieve BibTeX from Google Scholar
 
 ;; Copyright (C) 2014  Junpeng Qiu
 
@@ -31,24 +31,27 @@
   "Buffer that calls gscholar-bibtex")
 
 (defvar gscholar-bibtex-urls-cache nil
-  "Cache for all the urls of bibtex entries")
+  "Cache for all the urls of BibTeX entries")
 
 (defvar gscholar-bibtex-entries-cache nil
-  "Cache for the retrieved bibtex entries")
+  "Cache for the retrieved BibTeX entries")
 
 (defvar gscholar-bibtex-database-file nil
-  "Default bibtex database file")
+  "Default BibTeX database file")
 
 (defvar gscholar-bibtex-item-height 3
   "The height for each item")
 
-(defvar gscholar-bibtex-entry-buffer-name "*bibtex entry from Google Scholar*"
-  "Buffer name for bibtex entry")
+(defvar gscholar-bibtex-result-buffer-name "*Google Scholar Search Results*"
+  "Buffer name for Google Scholar search results")
+
+(defvar gscholar-bibtex-entry-buffer-name "*BibTeX entry from Google Scholar*"
+  "Buffer name for BibTeX entry")
 
 (defvar gscholar-bibtex-help
   "[n/p] next/previous; [TAB] show BibTeX entry; [A/W] append/write to database;\
- [a/w] append/write to file; [c] close bibtex entry window; [q] quit;"
-"Help string for gscholar bibtex")
+ [a/w] append/write to file; [c] close BibTeX entry window; [q] quit;"
+"Help string for gscholar-bibtex")
 
 ;; Face related
 (defface gscholar-bibtex-title
@@ -81,7 +84,8 @@
            (beg (progn (gscholar-bibtex--move-to-line line) (point)))
            (end (progn (gscholar-bibtex--move-to-line (+ line 3)) (point))))
       (move-overlay gcholar-bibtex-highlight-item-overlay beg end
-                    (current-buffer)))))
+                    (current-buffer))
+      (message gscholar-bibtex-help))))
 
 ;; Major mode
 (setq gscholar-bibtex-local-mode-map
@@ -97,11 +101,9 @@
         (define-key map "q" 'gscholar-bibtex-quit-gscholar-window)
         map))
 
-(define-derived-mode gscholar-bibtex-mode fundamental-mode "gscholar bibtex"
+(define-derived-mode gscholar-bibtex-mode fundamental-mode "gscholar-bibtex"
   (use-local-map gscholar-bibtex-local-mode-map)
   (setq buffer-read-only t)
-  (setq cursor-type 'bar)
-  (add-hook 'pre-command-hook '(lambda () (message gscholar-bibtex-help)) nil t)
   (add-hook 'post-command-hook 'gscholar-bibtex-highlight-current-item-hook
             nil t))
 
@@ -112,7 +114,7 @@
 
 (defun gscholar-bibtex-guard ()
   (unless (eq major-mode 'gscholar-bibtex-mode)
-    (error "Error: Not in `gscholar-bibtex-mode'!")))
+    (error "Error: you are not in `gscholar-bibtex-mode'!")))
 
 (defun gscholar-bibtex--current-beginning-line ()
   (1+ (* (/ (1- (line-number-at-pos)) gscholar-bibtex-item-height)
@@ -296,7 +298,7 @@
            (concat  "http://scholar.google.com/scholar?q="
                     (url-hexify-string
                      (replace-regexp-in-string " " "\+" query)))))
-         (gscholar-buffer (get-buffer-create "scholar")))
+         (gscholar-buffer (get-buffer-create gscholar-bibtex-result-buffer-name)))
     (with-current-buffer query-result-buffer
       (gscholar-bibtex-delete-response-header))
     (setq gscholar-bibtex-caller-buffer (current-buffer))
