@@ -153,6 +153,11 @@
 (defun gscholar-bibtex--write-bibtex-to-file-impl (&optional append)
   (gscholar-bibtex-guard)
   (gscholar-bibtex-retrieve-bibtex)
+  (unless gscholar-bibtex-database-file
+    (setq gscholar-bibtex-database-file
+          (call-interactively '(lambda (filename)
+                                 (interactive "Fgscholar-bibtex database file: ")
+                                 filename))))
   (if gscholar-bibtex-database-file
       (with-current-buffer (get-buffer gscholar-bibtex-entry-buffer-name)
         (write-region nil nil gscholar-bibtex-database-file append))
@@ -210,7 +215,8 @@
         (next-buffer)
       (if caller-window
           (progn (delete-window) (select-window caller-window))
-        (switch-to-buffer gscholar-bibtex-caller-buffer)))))
+        (switch-to-buffer gscholar-bibtex-caller-buffer))))
+  (message ""))
 
 (defun gscholar-bibtex-delete-response-header ()
   "Delete response's header in order to feed into libxml parser"
