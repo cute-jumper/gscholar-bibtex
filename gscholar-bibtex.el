@@ -334,25 +334,25 @@
     (setq gscholar-bibtex-caller-buffer (current-buffer))
     (setq gscholar-bibtex-urls-cache
           (gscholar-bibtex-get-bibtex-urls query-result-buffer))
-    (setq titles (gscholar-bibtex-get-titles query-result-buffer))
-    (setq subtitles (gscholar-bibtex-get-subtitles query-result-buffer))
-    (setq gscholar-bibtex-entries-cache
-          (make-vector (length gscholar-bibtex-urls-cache) ""))
-    (unless (get-buffer-window gscholar-buffer)
-      (switch-to-buffer-other-window gscholar-buffer))
-    (setq buffer-read-only nil)
-    (erase-buffer)
-    (goto-char (point-min))
-    (dotimes (i (length titles))
-      (insert "* " (gscholar-bibtex-prettify-title (nth i titles)))
-      (newline-and-indent)
-      (insert "  "
-              (gscholar-bibtex-prettify-subtitle (nth i subtitles)) "\n\n"))
-    (goto-char (point-min))
-    (gscholar-bibtex-mode)
-    (gscholar-bibtex-show-help)))
+    (let ((titles (gscholar-bibtex-get-titles query-result-buffer))
+          (subtitles (gscholar-bibtex-get-subtitles query-result-buffer)))
+      (setq gscholar-bibtex-entries-cache
+            (make-vector (length gscholar-bibtex-urls-cache) ""))
+      (unless (get-buffer-window gscholar-buffer)
+        (switch-to-buffer-other-window gscholar-buffer))
+      (setq buffer-read-only nil)
+      (erase-buffer)
+      (goto-char (point-min))
+      (dotimes (i (length titles))
+        (insert "* " (gscholar-bibtex-prettify-title (nth i titles)))
+        (newline-and-indent)
+        (insert "  "
+                (gscholar-bibtex-prettify-subtitle (nth i subtitles)) "\n\n"))
+      (goto-char (point-min))
+      (gscholar-bibtex-mode)
+      (gscholar-bibtex-show-help))))
 
-(when (boundp 'evil-emacs-state-modes)           
+(when (boundp 'evil-emacs-state-modes)
   (add-to-list 'evil-emacs-state-modes 'gscholar-bibtex-mode))
 
 (provide 'gscholar-bibtex)
