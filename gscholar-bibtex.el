@@ -119,7 +119,7 @@
                     (current-buffer)))))
 
 ;; Major mode
-(defvar gscholar-bibtex-local-mode-map
+(defvar gscholar-bibtex-mode-map
   (let ((map (make-sparse-keymap)))
     (define-key map "n" 'gscholar-bibtex-next-item)
     (define-key map "p" 'gscholar-bibtex-previous-item)
@@ -134,7 +134,6 @@
 
 ;;;###autoload
 (define-derived-mode gscholar-bibtex-mode fundamental-mode "gscholar-bibtex"
-  (use-local-map gscholar-bibtex-local-mode-map)
   (setq buffer-read-only t)
   (add-hook 'pre-command-hook 'gscholar-bibtex-show-help nil t)
   (add-hook 'post-command-hook 'gscholar-bibtex-highlight-current-item-hook
@@ -358,8 +357,8 @@
       (gscholar-bibtex-mode)
       (gscholar-bibtex-show-help))))
 
-(when (boundp 'evil-emacs-state-modes)
-  (add-to-list 'evil-emacs-state-modes 'gscholar-bibtex-mode))
+(eval-after-load 'evil
+  '(add-to-list 'evil-emacs-state-modes 'gscholar-bibtex-mode))
 
 (provide 'gscholar-bibtex)
 ;;; gscholar-bibtex.el ends here
