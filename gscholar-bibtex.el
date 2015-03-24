@@ -50,6 +50,10 @@
 
 ;;; Code:
 
+(defgroup gscholar-bibtex nil
+  "Retrieve BibTeX from Google Scholar."
+  :group 'bibtex)
+
 (defconst gscholar-bibtex-version "0.1"
   "gscholar-bibtex version number")
 
@@ -82,11 +86,13 @@
 ;; Face related
 (defface gscholar-bibtex-title
   '((t (:height 1.4 :foreground "light sea green")))
-  "Face for title")
+  "Face for title"
+  :group 'gscholar-bibtex)
 
 (defface gscholar-bibtex-subtitle
   '((t (:height 1.0)))
-  "Face for subtitle")
+  "Face for subtitle"
+  :group 'gscholar-bibtex)
 
 (defconst gcholar-bibtex-highlight-item-overlay
   (let ((ov (make-overlay 1 1)))
@@ -113,18 +119,18 @@
                     (current-buffer)))))
 
 ;; Major mode
-(setq gscholar-bibtex-local-mode-map
-      (let ((map (make-sparse-keymap)))
-        (define-key map "n" 'gscholar-bibtex-next-item)
-        (define-key map "p" 'gscholar-bibtex-previous-item)
-        (define-key map (kbd "<tab>") 'gscholar-bibtex-retrieve-bibtex)
-        (define-key map "A" 'gscholar-bibtex-append-bibtex-to-database)
-        (define-key map "W" 'gscholar-bibtex-write-bibtex-to-database)
-        (define-key map "a" 'gscholar-bibtex-append-bibtex-to-file)
-        (define-key map "w" 'gscholar-bibtex-write-bibtex-to-file)
-        (define-key map "c" 'gcholar-bibtex-quit-entry-window)
-        (define-key map "q" 'gscholar-bibtex-quit-gscholar-window)
-        map))
+(defvar gscholar-bibtex-local-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "n" 'gscholar-bibtex-next-item)
+    (define-key map "p" 'gscholar-bibtex-previous-item)
+    (define-key map (kbd "<tab>") 'gscholar-bibtex-retrieve-bibtex)
+    (define-key map "A" 'gscholar-bibtex-append-bibtex-to-database)
+    (define-key map "W" 'gscholar-bibtex-write-bibtex-to-database)
+    (define-key map "a" 'gscholar-bibtex-append-bibtex-to-file)
+    (define-key map "w" 'gscholar-bibtex-write-bibtex-to-file)
+    (define-key map "c" 'gcholar-bibtex-quit-entry-window)
+    (define-key map "q" 'gscholar-bibtex-quit-gscholar-window)
+    map))
 
 ;;;###autoload
 (define-derived-mode gscholar-bibtex-mode fundamental-mode "gscholar-bibtex"
@@ -334,25 +340,25 @@
     (setq gscholar-bibtex-caller-buffer (current-buffer))
     (setq gscholar-bibtex-urls-cache
           (gscholar-bibtex-get-bibtex-urls query-result-buffer))
-    (setq titles (gscholar-bibtex-get-titles query-result-buffer))
-    (setq subtitles (gscholar-bibtex-get-subtitles query-result-buffer))
-    (setq gscholar-bibtex-entries-cache
-          (make-vector (length gscholar-bibtex-urls-cache) ""))
-    (unless (get-buffer-window gscholar-buffer)
-      (switch-to-buffer-other-window gscholar-buffer))
-    (setq buffer-read-only nil)
-    (erase-buffer)
-    (goto-char (point-min))
-    (dotimes (i (length titles))
-      (insert "* " (gscholar-bibtex-prettify-title (nth i titles)))
-      (newline-and-indent)
-      (insert "  "
-              (gscholar-bibtex-prettify-subtitle (nth i subtitles)) "\n\n"))
-    (goto-char (point-min))
-    (gscholar-bibtex-mode)
-    (gscholar-bibtex-show-help)))
+    (let ((titles (gscholar-bibtex-get-titles query-result-buffer))
+          (subtitles (gscholar-bibtex-get-subtitles query-result-buffer)))
+      (setq gscholar-bibtex-entries-cache
+            (make-vector (length gscholar-bibtex-urls-cache) ""))
+      (unless (get-buffer-window gscholar-buffer)
+        (switch-to-buffer-other-window gscholar-buffer))
+      (setq buffer-read-only nil)
+      (erase-buffer)
+      (goto-char (point-min))
+      (dotimes (i (length titles))
+        (insert "* " (gscholar-bibtex-prettify-title (nth i titles)))
+        (newline-and-indent)
+        (insert "  "
+                (gscholar-bibtex-prettify-subtitle (nth i subtitles)) "\n\n"))
+      (goto-char (point-min))
+      (gscholar-bibtex-mode)
+      (gscholar-bibtex-show-help))))
 
-(when (boundp 'evil-emacs-state-modes)           
+(when (boundp 'evil-emacs-state-modes)
   (add-to-list 'evil-emacs-state-modes 'gscholar-bibtex-mode))
 
 (provide 'gscholar-bibtex)
