@@ -130,9 +130,12 @@
 (define-derived-mode gscholar-bibtex-mode fundamental-mode "gscholar-bibtex"
   (use-local-map gscholar-bibtex-local-mode-map)
   (setq buffer-read-only t)
-  (add-hook 'pre-command-hook (lambda () (message gscholar-bibtex-help)) nil t)
+  (add-hook 'pre-command-hook 'gscholar-bibtex-show-help nil t)
   (add-hook 'post-command-hook 'gscholar-bibtex-highlight-current-item-hook
             nil t))
+
+(defun gscholar-bibtex-show-help ()
+  (message gscholar-bibtex-help))
 
 (defun gscholar-bibtex-string-trim (str)
   (while (string-match "\\`^\n+\\|^\\s-+\\|\\s-+$\\|\n+\\|\r+\\|^\r\\'" str)
@@ -346,7 +349,8 @@
       (insert "  "
               (gscholar-bibtex-prettify-subtitle (nth i subtitles)) "\n\n"))
     (goto-char (point-min))
-    (gscholar-bibtex-mode)))
+    (gscholar-bibtex-mode)
+    (gscholar-bibtex-show-help)))
 
 (when (boundp 'evil-emacs-state-modes)           
   (add-to-list 'evil-emacs-state-modes 'gscholar-bibtex-mode))
