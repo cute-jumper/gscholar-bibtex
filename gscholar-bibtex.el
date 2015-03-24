@@ -81,7 +81,7 @@
 (defconst gscholar-bibtex-help
   "[n/p] next/previous; [TAB] show BibTeX entry; [A/W] append/write to database;\
  [a/w] append/write to file; [c] close BibTeX entry window; [q] quit;"
-"Help string for gscholar-bibtex")
+  "Help string for gscholar-bibtex")
 
 ;; Face related
 (defface gscholar-bibtex-title

@@ -1,5 +1,7 @@
 * gscholar bibtex
-  Retrieve BibTeX entry from Google Scholar by your query. All in Emacs-lisp!
+  [[http://melpa.org/#/gscholar-bibtex][file:http://melpa.org/packages/gscholar-bibtex-badge.svg]]
+
+  Retrieve BibTeX entries from Google Scholar by your query. All in Emacs-lisp!
 ** Basic usage
   : (add-to-list 'load-path "/path/to/gscholar-bibtex.el")
   : (require 'gscholar-bibtex)
