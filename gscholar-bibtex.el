@@ -50,6 +50,10 @@
 
 ;;; Code:
 
+(defgroup gscholar-bibtex nil
+  "Retrieve BibTeX from Google Scholar."
+  :group 'bibtex)
+
 (defconst gscholar-bibtex-version "0.1"
   "gscholar-bibtex version number")
 
@@ -82,11 +86,13 @@
 ;; Face related
 (defface gscholar-bibtex-title
   '((t (:height 1.4 :foreground "light sea green")))
-  "Face for title")
+  "Face for title"
+  :group 'gscholar-bibtex)
 
 (defface gscholar-bibtex-subtitle
   '((t (:height 1.0)))
-  "Face for subtitle")
+  "Face for subtitle"
+  :group 'gscholar-bibtex)
 
 (defconst gcholar-bibtex-highlight-item-overlay
   (let ((ov (make-overlay 1 1)))
