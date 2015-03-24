@@ -113,18 +113,18 @@
                     (current-buffer)))))
 
 ;; Major mode
-(setq gscholar-bibtex-local-mode-map
-      (let ((map (make-sparse-keymap)))
-        (define-key map "n" 'gscholar-bibtex-next-item)
-        (define-key map "p" 'gscholar-bibtex-previous-item)
-        (define-key map (kbd "<tab>") 'gscholar-bibtex-retrieve-bibtex)
-        (define-key map "A" 'gscholar-bibtex-append-bibtex-to-database)
-        (define-key map "W" 'gscholar-bibtex-write-bibtex-to-database)
-        (define-key map "a" 'gscholar-bibtex-append-bibtex-to-file)
-        (define-key map "w" 'gscholar-bibtex-write-bibtex-to-file)
-        (define-key map "c" 'gcholar-bibtex-quit-entry-window)
-        (define-key map "q" 'gscholar-bibtex-quit-gscholar-window)
-        map))
+(defvar gscholar-bibtex-local-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map "n" 'gscholar-bibtex-next-item)
+    (define-key map "p" 'gscholar-bibtex-previous-item)
+    (define-key map (kbd "<tab>") 'gscholar-bibtex-retrieve-bibtex)
+    (define-key map "A" 'gscholar-bibtex-append-bibtex-to-database)
+    (define-key map "W" 'gscholar-bibtex-write-bibtex-to-database)
+    (define-key map "a" 'gscholar-bibtex-append-bibtex-to-file)
+    (define-key map "w" 'gscholar-bibtex-write-bibtex-to-file)
+    (define-key map "c" 'gcholar-bibtex-quit-entry-window)
+    (define-key map "q" 'gscholar-bibtex-quit-gscholar-window)
+    map))
 
 ;;;###autoload
 (define-derived-mode gscholar-bibtex-mode fundamental-mode "gscholar-bibtex"
