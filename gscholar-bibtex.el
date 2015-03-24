@@ -171,18 +171,19 @@
   (interactive)
   (gscholar-bibtex-guard)
   (let* ((index (/ (1- (line-number-at-pos)) gscholar-bibtex-item-height))
+         (url-buffer (url-retrieve-synchronously
+                      (concat "http://scholar.google.com"
+                              (nth
+                               index
+                               gscholar-bibtex-urls-cache))))
          (bibtex-entry (progn (when (string=
                                      ""
                                      (elt gscholar-bibtex-entries-cache index))
-                                (with-current-buffer
-                                    (url-retrieve-synchronously
-                                     (concat "http://scholar.google.com"
-                                             (nth
-                                              index
-                                              gscholar-bibtex-urls-cache)))
+                                (with-current-buffer url-buffer
                                   (gscholar-bibtex-delete-response-header)
                                   (aset gscholar-bibtex-entries-cache index
-                                        (buffer-string))))
+                                        (buffer-string)))
+                                (kill-buffer url-buffer))
                               (elt gscholar-bibtex-entries-cache index)))
          (entry-buffer (get-buffer-create gscholar-bibtex-entry-buffer-name))
          (entry-window (get-buffer-window entry-buffer))
@@ -191,6 +192,10 @@
       (erase-buffer)
       (insert bibtex-entry)
       (bibtex-mode)
+      ;; Have to manually call this to set `bibtex-entry-head', otherwise
+      ;; `bibtex-parse-buffers-stealthily' will throw some errors since the our
+      ;; BibTeX buffer is not associated with an existing file:-(
+      (bibtex-set-dialect)
       (goto-char (point-min)))
     (unless entry-window
       (select-window (split-window-below))
@@ -267,7 +272,7 @@
     (ignore-errors
       (goto-char (point-min))
       (delete-region (point-min)
-                     (1+ (search-forward-regexp "^$")))
+                     (1+ (re-search-forward "^$" nil t)))
       (goto-char (point-min)))))
 
 (defun gscholar-bibtex-replace-html-named-entities (str)
@@ -341,6 +346,7 @@
           (gscholar-bibtex-get-bibtex-urls query-result-buffer))
     (let ((titles (gscholar-bibtex-get-titles query-result-buffer))
           (subtitles (gscholar-bibtex-get-subtitles query-result-buffer)))
+      (kill-buffer query-result-buffer)
       (setq gscholar-bibtex-entries-cache
             (make-vector (length gscholar-bibtex-urls-cache) ""))
       (unless (get-buffer-window gscholar-buffer)
