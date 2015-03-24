@@ -3,7 +3,8 @@
 ;; Copyright (C) 2014  Junpeng Qiu
 
 ;; Author: Junpeng Qiu <qjpchmail@gmail.com>
-;; Keywords: convenience
+;; Keywords: extensions
+;; Version: 0.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -20,11 +21,36 @@
 
 ;;; Commentary:
 
-;;
+;;* gscholar bibtex
+;;  Retrieve BibTeX entry from Google Scholar by your query. All in Emacs-lisp!
+;;** Basic usage
+;;  : (add-to-list 'load-path "/path/to/gscholar-bibtex.el")
+;;  : (require 'gscholar-bibtex)
+;;  : M-x gscholar-bibtex
+
+;;  Then enter your query and select the results.
+
+;;  Available commands in `gscholar-bibtex-mode', /i.e./, in the window of
+;;  search results:
+;;  - n/p: next/previous
+;;  - TAB: show BibTeX entry for current search result
+;;  - A/W: append/write to `gscholar-bibtex-database-file' (see later)
+;;  - a/w: append/write to a file
+;;  - c: close BibTeX entry window
+;;  - q: quit
+
+;;** Configure `gscholar-bibtex-database-file'
+;;   If you have a master BibTeX file, say =refs.bib=, as database, and want to
+;;   append/write the BibTeX entry to =refs.bib= without being asked for a
+;;   filename to be written every time, you can set
+;;   `gscholar-bibtex-database-file':
+;;   : (setq gscholar-bibtex-database-file "/path/to/refs.bib")
+
+;;   Then use "A" or "W" to append or write to =refs.bib=, respectively.
 
 ;;; Code:
 
-(defvar gscholar-bibtex-version "0.1"
+(defconst gscholar-bibtex-version "0.1"
   "gscholar-bibtex version number")
 
 (defvar gscholar-bibtex-caller-buffer nil
@@ -39,16 +65,16 @@
 (defvar gscholar-bibtex-database-file nil
   "Default BibTeX database file")
 
-(defvar gscholar-bibtex-item-height 3
+(defconst gscholar-bibtex-item-height 3
   "The height for each item")
 
-(defvar gscholar-bibtex-result-buffer-name "*Google Scholar Search Results*"
+(defconst gscholar-bibtex-result-buffer-name "*Google Scholar Search Results*"
   "Buffer name for Google Scholar search results")
 
-(defvar gscholar-bibtex-entry-buffer-name "*BibTeX entry from Google Scholar*"
+(defconst gscholar-bibtex-entry-buffer-name "*BibTeX entry from Google Scholar*"
   "Buffer name for BibTeX entry")
 
-(defvar gscholar-bibtex-help
+(defconst gscholar-bibtex-help
   "[n/p] next/previous; [TAB] show BibTeX entry; [A/W] append/write to database;\
  [a/w] append/write to file; [c] close BibTeX entry window; [q] quit;"
 "Help string for gscholar-bibtex")
@@ -62,7 +88,7 @@
   '((t (:height 1.0)))
   "Face for subtitle")
 
-(defvar gcholar-bibtex-highlight-item-overlay
+(defconst gcholar-bibtex-highlight-item-overlay
   (let ((ov (make-overlay 1 1)))
     (overlay-put ov 'face 'highlight)
     ov)
@@ -84,8 +110,7 @@
            (beg (progn (gscholar-bibtex--move-to-line line) (point)))
            (end (progn (gscholar-bibtex--move-to-line (+ line 3)) (point))))
       (move-overlay gcholar-bibtex-highlight-item-overlay beg end
-                    (current-buffer))
-      (message gscholar-bibtex-help))))
+                    (current-buffer)))))
 
 ;; Major mode
 (setq gscholar-bibtex-local-mode-map
@@ -101,9 +126,11 @@
         (define-key map "q" 'gscholar-bibtex-quit-gscholar-window)
         map))
 
+;;;###autoload
 (define-derived-mode gscholar-bibtex-mode fundamental-mode "gscholar-bibtex"
   (use-local-map gscholar-bibtex-local-mode-map)
   (setq buffer-read-only t)
+  (add-hook 'pre-command-hook (lambda () (message gscholar-bibtex-help)) nil t)
   (add-hook 'post-command-hook 'gscholar-bibtex-highlight-current-item-hook
             nil t))
 
@@ -162,48 +189,43 @@
       (switch-to-buffer entry-buffer)
       (select-window gscholar-window))))
 
-(defun gscholar-bibtex--write-bibtex-to-file-impl (&optional append)
+(defun gscholar-bibtex--write-bibtex-to-database-impl (&optional append)
   (gscholar-bibtex-guard)
   (gscholar-bibtex-retrieve-bibtex)
   (unless gscholar-bibtex-database-file
     (setq gscholar-bibtex-database-file
-          (call-interactively
-           '(lambda (filename)
-              (interactive "Fgscholar-bibtex database file: ")
-              filename))))
+          (read-file-name "gscholar-bibtex database file:")))
   (if gscholar-bibtex-database-file
-      (with-current-buffer (get-buffer gscholar-bibtex-entry-buffer-name)
-        (write-region nil nil gscholar-bibtex-database-file append))
+      (progn
+        (with-current-buffer (get-buffer gscholar-bibtex-entry-buffer-name)
+          (write-region nil nil gscholar-bibtex-database-file append))
+        (message "%s BibTeX entry to %s" (if append "Append" "Write")
+                 gscholar-bibtex-database-file))
     (error "Please set `gscholar-bibtex-database-file' first.")))
 
 (defun gscholar-bibtex-append-bibtex-to-database ()
   (interactive)
-  (gscholar-bibtex--write-bibtex-to-file-impl t))
+  (gscholar-bibtex--write-bibtex-to-database-impl t))
 
 (defun gscholar-bibtex-write-bibtex-to-database ()
   (interactive)
-  (gscholar-bibtex--write-bibtex-to-file-impl nil))
+  (gscholar-bibtex--write-bibtex-to-database-impl))
+
+(defun gscholar-bibtex--write-bibtex-to-file-impl (prompt &optional append)
+  (gscholar-bibtex-guard)
+  (gscholar-bibtex-retrieve-bibtex)
+  (let ((filename (read-file-name prompt)))
+    (with-current-buffer (get-buffer gscholar-bibtex-entry-buffer-name)
+      (write-region nil nil filename append))
+    (message "%s BibTeX entry to %s" (if append "Append" "Write") filename)))
 
 (defun gscholar-bibtex-append-bibtex-to-file ()
   (interactive)
-  (gscholar-bibtex-guard)
-  (gscholar-bibtex-retrieve-bibtex)
-  (let ((filename (call-interactively
-                   '(lambda (filename)
-                      (interactive "FAppend bibtex entry to file: ")
-                      filename))))
-    (with-current-buffer (get-buffer gscholar-bibtex-entry-buffer-name)
-      (write-region nil nil filename t))))
+  (gscholar-bibtex--write-bibtex-to-file-impl "Append BibTeX entry to file: " t))
 
 (defun gscholar-bibtex-write-bibtex-to-file ()
   (interactive)
-  (gscholar-bibtex-guard)
-  (gscholar-bibtex-retrieve-bibtex)
-  (with-current-buffer (get-buffer gscholar-bibtex-entry-buffer-name)
-    (write-region nil nil (call-interactively
-                           '(lambda (filename)
-                              (interactive "FWrite bibtex entry to file: ")
-                              filename)))))
+  (gscholar-bibtex--write-bibtex-to-file-impl "Write BibTeX entry to file: "))
 
 (defun gcholar-bibtex-quit-entry-window ()
   (interactive)
@@ -233,13 +255,18 @@
   (message ""))
 
 (defun gscholar-bibtex-delete-response-header ()
-  "Delete response's header in order to feed into libxml parser"
   (let (header-end)
     (ignore-errors
       (goto-char (point-min))
       (delete-region (point-min)
                      (1+ (search-forward-regexp "^$")))
       (goto-char (point-min)))))
+
+(defun gscholar-bibtex-replace-html-named-entities (str)
+  (let ((retval str)
+        (pair-list '(("&amp;" . "&") ("&hellip;" . "...") ("&quot;" "\""))))
+    (dolist (elt pair-list retval)
+      (setq retval (replace-regexp-in-string (car elt) (cdr elt) retval)))))
 
 (defun gscholar-bibtex-regex-search (buffer callback)
   (with-current-buffer buffer
@@ -254,8 +281,8 @@
       (while (re-search-forward "\\(/scholar\.bib.*?\\)\"" nil t)
         (setq retval
               (cons
-               (replace-regexp-in-string
-                "amp;" "" (match-string-no-properties 1)) retval)))
+               (gscholar-bibtex-replace-html-named-entities
+                (match-string-no-properties 1)) retval)))
       retval)))
 
 (defun gscholar-bibtex-get-titles (buffer)
@@ -268,7 +295,8 @@
             (mapcar
              (lambda (s)
                (gscholar-bibtex-string-trim
-                (replace-regexp-in-string "<.*?>\\|\\[.*?\\]" "" s))) retval))
+                (gscholar-bibtex-replace-html-named-entities
+                 (replace-regexp-in-string "<.*?>\\|\\[.*?\\]" "" s)))) retval))
       retval)))
 
 (defun gscholar-bibtex-get-subtitles (buffer)
@@ -281,12 +309,11 @@
             (mapcar
              (lambda (s)
                (gscholar-bibtex-string-trim
-                (replace-regexp-in-string
-                 "&hellip;"
-                 "..."
+                (gscholar-bibtex-replace-html-named-entities
                  (replace-regexp-in-string "<.*?>\\|\\[.*?\\]" "" s)))) retval))
       retval)))
 
+;;;###autoload
 (defun gscholar-bibtex (query)
   (interactive "sQuery: ")
   (let* ((url-request-method "GET")
@@ -321,8 +348,7 @@
     (goto-char (point-min))
     (gscholar-bibtex-mode)))
 
-(when (and (boundp 'evil-emacs-state-modes)
-           (not (member 'gscholar-bibtex-mode evil-emacs-state-modes)))
+(when (boundp 'evil-emacs-state-modes)           
   (add-to-list 'evil-emacs-state-modes 'gscholar-bibtex-mode))
 
 (provide 'gscholar-bibtex)
