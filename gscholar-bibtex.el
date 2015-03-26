@@ -123,7 +123,7 @@
   (let ((map (make-sparse-keymap)))
     (define-key map "n" 'gscholar-bibtex-next-item)
     (define-key map "p" 'gscholar-bibtex-previous-item)
-    (define-key map (kbd "<tab>") 'gscholar-bibtex-retrieve-bibtex)
+    (define-key map (kbd "<tab>") 'gscholar-bibtex-retrieve-and-show-bibtex)
     (define-key map "A" 'gscholar-bibtex-append-bibtex-to-database)
     (define-key map "W" 'gscholar-bibtex-write-bibtex-to-database)
     (define-key map "a" 'gscholar-bibtex-append-bibtex-to-file)
@@ -142,18 +142,56 @@
 (defun gscholar-bibtex-show-help ()
   (message gscholar-bibtex-help))
 
-(defun gscholar-bibtex-string-trim (str)
-  (while (string-match "\\`^\n+\\|^\\s-+\\|\\s-+$\\|\n+\\|\r+\\|^\r\\'" str)
-    (setq str (replace-match "" t t str)))
-  str)
-
 (defun gscholar-bibtex-guard ()
   (unless (eq major-mode 'gscholar-bibtex-mode)
     (error "Error: you are not in `gscholar-bibtex-mode'!")))
 
+(defun gscholar-bibtex--string-trim (str)
+  (while (string-match "\\`^\n+\\|^\\s-+\\|\\s-+$\\|\n+\\|\r+\\|^\r\\'" str)
+    (setq str (replace-match "" t t str)))
+  str)
+
 (defun gscholar-bibtex--current-beginning-line ()
   (1+ (* (/ (1- (line-number-at-pos)) gscholar-bibtex-item-height)
          gscholar-bibtex-item-height)))
+
+(defun gscholar-bibtex--delete-response-header ()
+  (let (header-end)
+    (ignore-errors
+      (goto-char (point-min))
+      (delete-region (point-min)
+                     (1+ (re-search-forward "^$" nil t)))
+      (goto-char (point-min)))))
+
+(defun gscholar-bibtex--replace-html-named-entities (str)
+  (let ((retval str)
+        (pair-list '(("&amp;" . "&") ("&hellip;" . "...") ("&quot;" "\""))))
+    (dolist (elt pair-list retval)
+      (setq retval (replace-regexp-in-string (car elt) (cdr elt) retval)))))
+
+(defun gscholar-bibtex--html-value-cleanup (s)
+  (gscholar-bibtex--string-trim
+   (gscholar-bibtex--replace-html-named-entities
+    (replace-regexp-in-string "<.*?>" "" s))))
+
+(defun gscholar-bibtex--url-retrieve-as-string (url)
+  (let ((response-buffer (url-retrieve-synchronously url))
+        retval)
+    (with-current-buffer response-buffer
+      (gscholar-bibtex--delete-response-header)
+      (setq retval (buffer-string)))
+    (kill-buffer response-buffer)
+    retval))
+
+(defun gscholar-bibtex-re-search (buffer-content surrounding-regexp subexp-count)
+  (with-temp-buffer
+    (insert buffer-content)
+    (let (retval)
+      (goto-char (point-min))
+      (while (re-search-forward surrounding-regexp nil t)
+        (push (gscholar-bibtex--html-value-cleanup
+               (match-string-no-properties subexp-count)) retval))
+      (nreverse retval))))
 
 (defun gscholar-bibtex-next-item ()
   (interactive)
@@ -167,24 +205,16 @@
   (gscholar-bibtex--move-to-line (- (gscholar-bibtex--current-beginning-line)
                                     gscholar-bibtex-item-height)))
 
-(defun gscholar-bibtex-retrieve-bibtex ()
+(defun gscholar-bibtex-retrieve-and-show-bibtex ()
   (interactive)
   (gscholar-bibtex-guard)
   (let* ((index (/ (1- (line-number-at-pos)) gscholar-bibtex-item-height))
-         (url-buffer (url-retrieve-synchronously
-                      (concat "http://scholar.google.com"
-                              (nth
-                               index
-                               gscholar-bibtex-urls-cache))))
-         (bibtex-entry (progn (when (string=
-                                     ""
-                                     (elt gscholar-bibtex-entries-cache index))
-                                (with-current-buffer url-buffer
-                                  (gscholar-bibtex-delete-response-header)
-                                  (aset gscholar-bibtex-entries-cache index
-                                        (buffer-string)))
-                                (kill-buffer url-buffer))
-                              (elt gscholar-bibtex-entries-cache index)))
+         (bibtex-entry
+          (progn (when (string= "" (elt gscholar-bibtex-entries-cache index))
+                   (aset gscholar-bibtex-entries-cache index
+                         (gscholar-bibtex-google-scholar-bibtex-content
+                          (nth index gscholar-bibtex-urls-cache))))
+                 (elt gscholar-bibtex-entries-cache index)))
          (entry-buffer (get-buffer-create gscholar-bibtex-entry-buffer-name))
          (entry-window (get-buffer-window entry-buffer))
          (gscholar-window (selected-window)))
@@ -204,7 +234,7 @@
 
 (defun gscholar-bibtex--write-bibtex-to-database-impl (&optional append)
   (gscholar-bibtex-guard)
-  (gscholar-bibtex-retrieve-bibtex)
+  (gscholar-bibtex-retrieve-and-show-bibtex)
   (unless gscholar-bibtex-database-file
     (setq gscholar-bibtex-database-file
           (read-file-name "gscholar-bibtex database file:")))
@@ -226,7 +256,7 @@
 
 (defun gscholar-bibtex--write-bibtex-to-file-impl (prompt &optional append)
   (gscholar-bibtex-guard)
-  (gscholar-bibtex-retrieve-bibtex)
+  (gscholar-bibtex-retrieve-and-show-bibtex)
   (let ((filename (read-file-name prompt)))
     (with-current-buffer (get-buffer gscholar-bibtex-entry-buffer-name)
       (write-region nil nil filename append))
@@ -267,101 +297,55 @@
         (switch-to-buffer gscholar-bibtex-caller-buffer))))
   (message ""))
 
-(defun gscholar-bibtex-delete-response-header ()
-  (let (header-end)
-    (ignore-errors
-      (goto-char (point-min))
-      (delete-region (point-min)
-                     (1+ (re-search-forward "^$" nil t)))
-      (goto-char (point-min)))))
+;;; backend related
+(defun gscholar-bibtex-google-scholar-search-results (query)
+  (let* ((url-request-method "GET")
+         (random-id (format "%016x" (random (expt 16 16))))
+         (url-request-extra-headers
+          `(("Cookie" . ,(concat "GSP=ID=" random-id ":CF=4")))))
+    (gscholar-bibtex--url-retrieve-as-string
+     (concat  "http://scholar.google.com/scholar?q="
+              (url-hexify-string
+               (replace-regexp-in-string " " "\+" query))))))
 
-(defun gscholar-bibtex-replace-html-named-entities (str)
-  (let ((retval str)
-        (pair-list '(("&amp;" . "&") ("&hellip;" . "...") ("&quot;" "\""))))
-    (dolist (elt pair-list retval)
-      (setq retval (replace-regexp-in-string (car elt) (cdr elt) retval)))))
+(defun gscholar-bibtex-google-scholar-bibtex-urls (buffer-content)
+  (gscholar-bibtex-re-search buffer-content "\\(/scholar\.bib.*?\\)\"" 1))
 
-(defun gscholar-bibtex-regex-search (buffer callback)
-  (with-current-buffer buffer
-    (let (retval)
-      (goto-char (point-min))
-      (nreverse (funcall callback retval)))))
+(defun gscholar-bibtex-google-scholar-titles (buffer-content)
+  (gscholar-bibtex-re-search buffer-content "<h3.*?>\\(.*?\\)</h3>" 1))
 
-(defun gscholar-bibtex-get-bibtex-urls (buffer)
-  (gscholar-bibtex-regex-search
-   buffer
-   '(lambda (retval)
-      (while (re-search-forward "\\(/scholar\.bib.*?\\)\"" nil t)
-        (setq retval
-              (cons
-               (gscholar-bibtex-replace-html-named-entities
-                (match-string-no-properties 1)) retval)))
-      retval)))
+(defun gscholar-bibtex-google-scholar-subtitles (buffer-content)
+  (gscholar-bibtex-re-search buffer-content "<div class=\"gs_a\">\\(.*?\\)</div>" 1))
 
-(defun gscholar-bibtex-get-titles (buffer)
-  (gscholar-bibtex-regex-search
-   buffer
-   '(lambda (retval)
-      (while (re-search-forward "<h3.*?</h3>" nil t)
-        (setq retval (cons (match-string-no-properties 0) retval)))
-      (setq retval
-            (mapcar
-             (lambda (s)
-               (gscholar-bibtex-string-trim
-                (gscholar-bibtex-replace-html-named-entities
-                 (replace-regexp-in-string "<.*?>\\|\\[.*?\\]" "" s)))) retval))
-      retval)))
-
-(defun gscholar-bibtex-get-subtitles (buffer)
-  (gscholar-bibtex-regex-search
-   buffer
-   '(lambda (retval)
-      (while (re-search-forward "<div class=\"gs_a\">\\(.*?\\)</div>" nil t)
-        (setq retval (cons (match-string-no-properties 1) retval)))
-      (setq retval
-            (mapcar
-             (lambda (s)
-               (gscholar-bibtex-string-trim
-                (gscholar-bibtex-replace-html-named-entities
-                 (replace-regexp-in-string "<.*?>\\|\\[.*?\\]" "" s)))) retval))
-      retval)))
+(defun gscholar-bibtex-google-scholar-bibtex-content (bibtex-url)
+  (gscholar-bibtex--url-retrieve-as-string
+   (concat "http://scholar.google.com" bibtex-url)))
 
 ;;;###autoload
 (defun gscholar-bibtex (query)
   (interactive "sQuery: ")
-  (let* ((url-request-method "GET")
-         (random-id (format "%016x" (random (expt 16 16))))
-         (url-request-extra-headers
-          `(("Cookie" . ,(concat "GSP=ID=" random-id ":CF=4"))))
-         (query-result-buffer
-          (url-retrieve-synchronously
-           (concat  "http://scholar.google.com/scholar?q="
-                    (url-hexify-string
-                     (replace-regexp-in-string " " "\+" query)))))
+  (let* ((search-results (gscholar-bibtex-google-scholar-search-results query))
+         (titles (gscholar-bibtex-google-scholar-titles search-results))
+         (subtitles (gscholar-bibtex-google-scholar-subtitles search-results))
          (gscholar-buffer (get-buffer-create gscholar-bibtex-result-buffer-name)))
-    (with-current-buffer query-result-buffer
-      (gscholar-bibtex-delete-response-header))
     (setq gscholar-bibtex-caller-buffer (current-buffer))
     (setq gscholar-bibtex-urls-cache
-          (gscholar-bibtex-get-bibtex-urls query-result-buffer))
-    (let ((titles (gscholar-bibtex-get-titles query-result-buffer))
-          (subtitles (gscholar-bibtex-get-subtitles query-result-buffer)))
-      (kill-buffer query-result-buffer)
-      (setq gscholar-bibtex-entries-cache
-            (make-vector (length gscholar-bibtex-urls-cache) ""))
-      (unless (get-buffer-window gscholar-buffer)
-        (switch-to-buffer-other-window gscholar-buffer))
-      (setq buffer-read-only nil)
-      (erase-buffer)
-      (goto-char (point-min))
-      (dotimes (i (length titles))
-        (insert "* " (gscholar-bibtex-prettify-title (nth i titles)))
-        (newline-and-indent)
-        (insert "  "
-                (gscholar-bibtex-prettify-subtitle (nth i subtitles)) "\n\n"))
-      (goto-char (point-min))
-      (gscholar-bibtex-mode)
-      (gscholar-bibtex-show-help))))
+          (gscholar-bibtex-google-scholar-bibtex-urls search-results))
+    (setq gscholar-bibtex-entries-cache
+          (make-vector (length gscholar-bibtex-urls-cache) ""))
+    (unless (get-buffer-window gscholar-buffer)
+      (switch-to-buffer-other-window gscholar-buffer))
+    (setq buffer-read-only nil)
+    (erase-buffer)
+    (goto-char (point-min))
+    (dotimes (i (length titles))
+      (insert "* " (gscholar-bibtex-prettify-title (nth i titles)))
+      (newline-and-indent)
+      (insert "  "
+              (gscholar-bibtex-prettify-subtitle (nth i subtitles)) "\n\n"))
+    (goto-char (point-min))
+    (gscholar-bibtex-mode)
+    (gscholar-bibtex-show-help)))
 
 (eval-after-load 'evil
   '(add-to-list 'evil-emacs-state-modes 'gscholar-bibtex-mode))
