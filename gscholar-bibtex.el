@@ -152,8 +152,13 @@
   str)
 
 (defun gscholar-bibtex--current-beginning-line ()
-  (1+ (* (/ (1- (line-number-at-pos)) gscholar-bibtex-item-height)
-         gscholar-bibtex-item-height)))
+  (1+ (* (gscholar-bibtex--current-index) gscholar-bibtex-item-height)))
+
+(defun gscholar-bibtex--current-index ()
+  (let ((line-number (+ (line-number-at-pos) 
+			(if (= (point) (point-max))
+			    -1 0))))  
+    (/ (1- line-number) gscholar-bibtex-item-height)))
 
 (defun gscholar-bibtex--delete-response-header ()
   (let (header-end)
@@ -208,7 +213,7 @@
 (defun gscholar-bibtex-retrieve-and-show-bibtex ()
   (interactive)
   (gscholar-bibtex-guard)
-  (let* ((index (/ (1- (line-number-at-pos)) gscholar-bibtex-item-height))
+  (let* ((index (gscholar-bibtex--current-index))
          (bibtex-entry
           (progn (when (string= "" (elt gscholar-bibtex-entries-cache index))
                    (aset gscholar-bibtex-entries-cache index
