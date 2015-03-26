@@ -50,6 +50,8 @@
 
 ;;; Code:
 
+(require 'bibtex)
+
 (defgroup gscholar-bibtex nil
   "Retrieve BibTeX from Google Scholar."
   :group 'bibtex)
@@ -72,11 +74,22 @@
 (defconst gscholar-bibtex-item-height 3
   "The height for each item")
 
-(defconst gscholar-bibtex-result-buffer-name "*Google Scholar Search Results*"
+(defvar gscholar-bibtex-sources nil)
+
+(defvar gscholar-bibtex-selected-source "Google Scholar")
+
+(defconst gscholar-bibtex-result-buffer-name "*gscholar-bibtex Search Results*"
   "Buffer name for Google Scholar search results")
 
-(defconst gscholar-bibtex-entry-buffer-name "*BibTeX entry from Google Scholar*"
+(defconst gscholar-bibtex-entry-buffer-name "*BibTeX entry*"
   "Buffer name for BibTeX entry")
+
+(defconst gscholar-bibtex-function-suffixes-alist
+  '((:search-results . "search-results")
+    (:titles . "titles")
+    (:subtitles . "subtitles")
+    (:bibtex-urls . "bibtex-urls")
+    (:bibtex-content . "bibtex-content")))
 
 (defconst gscholar-bibtex-help
   "[n/p] next/previous; [TAB] show BibTeX entry; [A/W] append/write to database;\
@@ -146,18 +159,20 @@
   (unless (eq major-mode 'gscholar-bibtex-mode)
     (error "Error: you are not in `gscholar-bibtex-mode'!")))
 
-(defun gscholar-bibtex--string-trim (str)
+(defun gscholar-bibtex--string-cleanup (str)
   (while (string-match "\\`^\n+\\|^\\s-+\\|\\s-+$\\|\n+\\|\r+\\|^\r\\'" str)
     (setq str (replace-match "" t t str)))
-  str)
+  (replace-regexp-in-string "[\r\n\t ]+" " " str))
+
+;;(replace-regexp-in-string "[ \r\n]\\{2,\\}" " " "    ")
 
 (defun gscholar-bibtex--current-beginning-line ()
   (1+ (* (gscholar-bibtex--current-index) gscholar-bibtex-item-height)))
 
 (defun gscholar-bibtex--current-index ()
-  (let ((line-number (+ (line-number-at-pos) 
-			(if (= (point) (point-max))
-			    -1 0))))  
+  (let ((line-number (+ (line-number-at-pos)
+                        (if (= (point) (point-max))
+                            -1 0))))
     (/ (1- line-number) gscholar-bibtex-item-height)))
 
 (defun gscholar-bibtex--delete-response-header ()
@@ -168,15 +183,20 @@
                      (1+ (re-search-forward "^$" nil t)))
       (goto-char (point-min)))))
 
-(defun gscholar-bibtex--replace-html-named-entities (str)
+(defun gscholar-bibtex--replace-html-entities (str)
   (let ((retval str)
         (pair-list '(("&amp;" . "&") ("&hellip;" . "...") ("&quot;" "\""))))
     (dolist (elt pair-list retval)
-      (setq retval (replace-regexp-in-string (car elt) (cdr elt) retval)))))
+      (setq retval (replace-regexp-in-string (car elt) (cdr elt) retval)))
+    (replace-regexp-in-string
+     "&#[0-9]*;"
+     (lambda (match)
+       (format "%c" (string-to-number (substring match 2 -1))))
+     retval)))
 
 (defun gscholar-bibtex--html-value-cleanup (s)
-  (gscholar-bibtex--string-trim
-   (gscholar-bibtex--replace-html-named-entities
+  (gscholar-bibtex--string-cleanup
+   (gscholar-bibtex--replace-html-entities
     (replace-regexp-in-string "<.*?>" "" s))))
 
 (defun gscholar-bibtex--url-retrieve-as-string (url)
@@ -217,7 +237,8 @@
          (bibtex-entry
           (progn (when (string= "" (elt gscholar-bibtex-entries-cache index))
                    (aset gscholar-bibtex-entries-cache index
-                         (gscholar-bibtex-google-scholar-bibtex-content
+                         (gscholar-bibtex-dispatcher
+                          :bibtex-content
                           (nth index gscholar-bibtex-urls-cache))))
                  (elt gscholar-bibtex-entries-cache index)))
          (entry-buffer (get-buffer-create gscholar-bibtex-entry-buffer-name))
@@ -302,7 +323,79 @@
         (switch-to-buffer gscholar-bibtex-caller-buffer))))
   (message ""))
 
-;;; backend related
+(defun gscholar-bibtex-install-source (source-name source-symbol)
+  (let ((retval t))
+    (dolist (pair gscholar-bibtex-function-suffixes-alist retval)
+      (unless
+          (fboundp
+           (gscholar-bibtex-get-func-name (car pair) source-symbol))
+        (setq retval nil)))
+    (unless retval
+      (error
+       "Installation failed! You need to define all necessary functions!"))
+    (push `(,source-name . ,source-symbol) gscholar-bibtex-sources)))
+
+(defun gscholar-bibtex-get-func-name (kind source-symbol)
+  (intern
+   (concat
+    "gscholar-bibtex-"
+    (symbol-name source-symbol)
+    "-"
+    (assoc-default kind gscholar-bibtex-function-suffixes-alist))))
+
+;;; dispatcher
+(defun gscholar-bibtex-dispatcher (kind arg)
+  (funcall
+   (gscholar-bibtex-get-func-name
+    kind
+    (assoc-default gscholar-bibtex-selected-source gscholar-bibtex-sources))
+   arg))
+
+;;; acm
+(defun gscholar-bibtex-acm-search-results (query)
+  (let* ((url-request-method "POST")
+         (url-request-extra-headers
+          '(("Content-Type" . "application/x-www-form-urlencoded")))
+         (url-request-data
+          (mapconcat (lambda (arg)
+                       (concat (url-hexify-string (car arg))
+                               "="
+                               (url-hexify-string (cdr arg))))
+                     `(("query" . ,(replace-regexp-in-string " " "\+" query)))
+                     "&")))
+    (gscholar-bibtex--url-retrieve-as-string
+     "http://dl.acm.org/results.cfm?h=1")))
+
+(defun gscholar-bibtex-acm-titles (buffer-content)
+  (gscholar-bibtex-re-search
+   buffer-content
+   "<A HREF=\"citation.cfm[^>]*?>\\(.*?\\)</A>" 1))
+
+(defun gscholar-bibtex-acm-subtitles (buffer-content)
+  (gscholar-bibtex-re-search
+   buffer-content
+   "<div class=\"authors\">\\([[:print:][:space:]]*?\\)</div>" 1))
+
+(defun gscholar-bibtex-acm-bibtex-urls (buffer-content)
+  (mapcar
+   (lambda (href)
+     (let ((retval href)
+           (pair-list '(("coll=DL&dl=GUIDE" . "expformat=bibtex")
+                        ("id" . "parent_id")
+                        ("\\." . "&id=")
+                        ("cfm" . "downformats.cfm"))))
+       (dolist (pair pair-list retval)
+         (setq retval
+               (replace-regexp-in-string (car pair) (cdr pair) retval)))))
+   (gscholar-bibtex-re-search
+    buffer-content
+    "<A HREF=\"citation\.\\(.*?\\)\"" 1)))
+
+(defun gscholar-bibtex-acm-bibtex-content (bibtex-url)
+  (gscholar-bibtex--url-retrieve-as-string
+   (concat "http://dl.acm.org/" bibtex-url)))
+
+;; Google Scholar
 (defun gscholar-bibtex-google-scholar-search-results (query)
   (let* ((url-request-method "GET")
          (random-id (format "%016x" (random (expt 16 16))))
@@ -320,22 +413,30 @@
   (gscholar-bibtex-re-search buffer-content "<h3.*?>\\(.*?\\)</h3>" 1))
 
 (defun gscholar-bibtex-google-scholar-subtitles (buffer-content)
-  (gscholar-bibtex-re-search buffer-content "<div class=\"gs_a\">\\(.*?\\)</div>" 1))
+  (gscholar-bibtex-re-search
+   buffer-content
+   "<div class=\"gs_a\">\\(.*?\\)</div>" 1))
 
 (defun gscholar-bibtex-google-scholar-bibtex-content (bibtex-url)
   (gscholar-bibtex--url-retrieve-as-string
    (concat "http://scholar.google.com" bibtex-url)))
 
 ;;;###autoload
-(defun gscholar-bibtex (query)
-  (interactive "sQuery: ")
-  (let* ((search-results (gscholar-bibtex-google-scholar-search-results query))
-         (titles (gscholar-bibtex-google-scholar-titles search-results))
-         (subtitles (gscholar-bibtex-google-scholar-subtitles search-results))
-         (gscholar-buffer (get-buffer-create gscholar-bibtex-result-buffer-name)))
+(defun gscholar-bibtex ()
+  (interactive)
+  (setq gscholar-bibtex-selected-source
+        (completing-read "Select a source: " gscholar-bibtex-sources))
+  (unless (assoc gscholar-bibtex-sources gscholar-bibtex-sources)
+    (error "Please select an installed source!"))
+  (let* ((query (read-string "Query: "))
+         (search-results (gscholar-bibtex-dispatcher :search-results query))
+         (titles (gscholar-bibtex-dispatcher :titles search-results))
+         (subtitles (gscholar-bibtex-dispatcher :subtitles search-results))
+         (gscholar-buffer
+          (get-buffer-create gscholar-bibtex-result-buffer-name)))
     (setq gscholar-bibtex-caller-buffer (current-buffer))
     (setq gscholar-bibtex-urls-cache
-          (gscholar-bibtex-google-scholar-bibtex-urls search-results))
+          (gscholar-bibtex-dispatcher :bibtex-urls search-results))
     (setq gscholar-bibtex-entries-cache
           (make-vector (length gscholar-bibtex-urls-cache) ""))
     (unless (get-buffer-window gscholar-buffer)
@@ -351,6 +452,10 @@
     (goto-char (point-min))
     (gscholar-bibtex-mode)
     (gscholar-bibtex-show-help)))
+
+;; install sources
+(gscholar-bibtex-install-source "ACM Digital Library" 'acm)
+(gscholar-bibtex-install-source "Google Scholar" 'google-scholar)
 
 (eval-after-load 'evil
   '(add-to-list 'evil-emacs-state-modes 'gscholar-bibtex-mode))
