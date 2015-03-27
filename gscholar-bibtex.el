@@ -21,32 +21,99 @@
 
 ;;; Commentary:
 
-;;* gscholar bibtex
-;;  Retrieve BibTeX entry from Google Scholar by your query. All in Emacs-lisp!
-;;** Basic usage
-;;  : (add-to-list 'load-path "/path/to/gscholar-bibtex.el")
-;;  : (require 'gscholar-bibtex)
-;;  : M-x gscholar-bibtex
+;; * gscholar bibtex
 
-;;  Then enter your query and select the results.
+;;   Retrieve BibTeX entries from Google Scholar, ACM Digital Library and IEEE
+;;   Xplore by your query. All in Emacs Lisp!
 
-;;  Available commands in `gscholar-bibtex-mode', /i.e./, in the window of
-;;  search results:
-;;  - n/p: next/previous
-;;  - TAB: show BibTeX entry for current search result
-;;  - A/W: append/write to `gscholar-bibtex-database-file' (see later)
-;;  - a/w: append/write to a file
-;;  - c: close BibTeX entry window
-;;  - q: quit
+;;   *UPDATE*: ACM Digital Library and IEEE Xplore are now supported though the
+;;    package name doesn't suggest that.
+;; ** Basic usage
+;;    Without =package.el=:
+;;   : (add-to-list 'load-path "/path/to/gscholar-bibtex.el")
+;;   : (require 'gscholar-bibtex)
 
-;;** Configure `gscholar-bibtex-database-file'
-;;   If you have a master BibTeX file, say =refs.bib=, as database, and want to
-;;   append/write the BibTeX entry to =refs.bib= without being asked for a
-;;   filename to be written every time, you can set
-;;   `gscholar-bibtex-database-file':
-;;   : (setq gscholar-bibtex-database-file "/path/to/refs.bib")
+;;    With =package.el=: install via melpa!
 
-;;   Then use "A" or "W" to append or write to =refs.bib=, respectively.
+;;    To use, simply call
+;;   : M-x gscholar-bibtex
+
+;;   Choose a source, then enter your query and select the results.
+
+;;   Available commands in `gscholar-bibtex-mode', /i.e./, in the window of search
+;;   results:
+;;   - n/p: next/previous
+;;   - TAB: show BibTeX entry for current search result
+;;   - A/W: append/write to `gscholar-bibtex-database-file' (see later)
+;;   - a/w: append/write to a file
+;;   - c: close BibTeX entry window
+;;   - q: quit
+
+;; ** Sources
+;;   By default, I enable all three sources(Google Scholar, ACM Digital Library and
+;;   IEEE Xplore). If you don't want to enable some of them, you could call
+;;   : M-x gscholar-bibtex-turn-off-sources
+
+;;   Similarly, if you want to enable some of them, you could call
+;;   : M-x gscholar-bibtex-turn-on-sources
+
+;;   To keep the configuration in your init file, you could use the following
+;;   format(*NOT* real code):
+;;   : (gscholar-bibtex-source-on-off action source-name) 
+
+;;   /action/: :on or :off
+;;   /source-name/: "Google Scholar", "ACM Digital Library" or "IEEE Xplore"
+  
+;;   Say if you want to disable "IEEE Xplore", use the following code:
+;;   : (gscholar-bibtex-source-on-off :off "IEEE Xplore")
+
+;; ** Configuring `gscholar-bibtex-database-file'
+;;    If you have a master BibTeX file, say =refs.bib=, as database, and want to
+;;    append/write the BibTeX entry to =refs.bib= without being asked for a
+;;    filename to be written every time, you can set
+;;    `gscholar-bibtex-database-file':
+;;    : (setq gscholar-bibtex-database-file "/path/to/refs.bib")
+
+;;    Then use "A" or "W" to append or write to =refs.bib=, respectively.
+  
+;; ** Adding more sources
+;;    Currently these three sources cover nearly all my needs, and it is possible
+;;    if you need to add more sources.
+
+;;    Basically, you need to implement following five functions(if you're willing,
+;;    I think looking the source code is better. The implementation is easy!):
+;; #+BEGIN_SRC elisp
+;; (defun gscholar-bibtex-SourceName-search-results (query)
+;; "In the body, call `gscholar-bibtex--url-retrieve-as-string' to return a string
+;; containing query results"
+;;   body)
+
+;; (defun gscholar-bibtex-SourceName-titles (buffer-content)
+;; "Given the query string `buffer-content', return the list of titles"
+;;   body)
+
+;; (defun gscholar-bibtex-SourceName-subtitles (buffer-content)
+;; "Given the query string `buffer-content', return the list of subtitles"
+;;   body)
+
+;; (defun gscholar-bibtex-SourceName-bibtex-urls (buffer-content)
+;; "Given the query string `buffer-content', return the list of urls(or maybe other
+;;  feature) of the BibTeX entries, which would be fed to the next function"
+;;   body)
+
+;; (defun gscholar-bibtex-SourceName-bibtex-content (arg)
+;; "Given the url(or other feature) of a BibTeX entry, return the entry as string.
+;; Also call `gscholar-bibtex--url-retrieve-as-string' for convenience"
+;;   body)
+;; #+END_SRC
+   
+;;    Then you need to add a line:
+;;    : (gscholar-bibtex-install-source "Source Name" 'SourceName)
+   
+;;    You should put this line somewhere near the end of `gscholar-bibtex.el',
+;;    where you could find several `gscholar-bibtex-install-source' lines.
+
+;;    That's all. Enjoy hacking^_^
 
 ;;; Code:
 
@@ -56,7 +123,7 @@
   "Retrieve BibTeX from Google Scholar."
   :group 'bibtex)
 
-(defconst gscholar-bibtex-version "0.1"
+(defconst gscholar-bibtex-version "0.2"
   "gscholar-bibtex version number")
 
 (defvar gscholar-bibtex-caller-buffer nil
@@ -74,9 +141,17 @@
 (defconst gscholar-bibtex-item-height 3
   "The height for each item")
 
-(defvar gscholar-bibtex-sources nil)
+(defvar gscholar-bibtex-available-sources nil
+  "Avaiable sources for query")
 
-(defvar gscholar-bibtex-selected-source "Google Scholar")
+(defvar gscholar-bibtex-enabled-sources nil
+  "List of enabled sources")
+
+(defvar gscholar-bibtex-disabled-sources nil
+  "List of disabled sources")
+
+(defvar gscholar-bibtex-selected-source nil
+  "Currently selected source")
 
 (defconst gscholar-bibtex-result-buffer-name "*gscholar-bibtex Search Results*"
   "Buffer name for Google Scholar search results")
@@ -141,11 +216,10 @@
     (define-key map "W" 'gscholar-bibtex-write-bibtex-to-database)
     (define-key map "a" 'gscholar-bibtex-append-bibtex-to-file)
     (define-key map "w" 'gscholar-bibtex-write-bibtex-to-file)
-    (define-key map "c" 'gcholar-bibtex-quit-entry-window)
+    (define-key map "c" 'gscholar-bibtex-quit-entry-window)
     (define-key map "q" 'gscholar-bibtex-quit-gscholar-window)
     map))
 
-;;;###autoload
 (define-derived-mode gscholar-bibtex-mode fundamental-mode "gscholar-bibtex"
   (setq buffer-read-only t)
   (add-hook 'pre-command-hook 'gscholar-bibtex-show-help nil t)
@@ -163,8 +237,6 @@
   (while (string-match "\\`^\n+\\|^\\s-+\\|\\s-+$\\|\n+\\|\r+\\|^\r\\'" str)
     (setq str (replace-match "" t t str)))
   (replace-regexp-in-string "[\r\n\t ]+" " " str))
-
-;;(replace-regexp-in-string "[ \r\n]\\{2,\\}" " " "    ")
 
 (defun gscholar-bibtex--current-beginning-line ()
   (1+ (* (gscholar-bibtex--current-index) gscholar-bibtex-item-height)))
@@ -185,14 +257,15 @@
 
 (defun gscholar-bibtex--replace-html-entities (str)
   (let ((retval str)
-        (pair-list '(("&amp;" . "&") ("&hellip;" . "...") ("&quot;" "\""))))
+        (pair-list
+         '(("&amp;" . "&")
+           ("&hellip;" . "...")
+           ("&quot;" . "\"")
+           ("&#[0-9]*;" .
+            (lambda (match)
+              (format "%c" (string-to-number (substring match 2 -1))))))))
     (dolist (elt pair-list retval)
-      (setq retval (replace-regexp-in-string (car elt) (cdr elt) retval)))
-    (replace-regexp-in-string
-     "&#[0-9]*;"
-     (lambda (match)
-       (format "%c" (string-to-number (substring match 2 -1))))
-     retval)))
+      (setq retval (replace-regexp-in-string (car elt) (cdr elt) retval)))))
 
 (defun gscholar-bibtex--html-value-cleanup (s)
   (gscholar-bibtex--string-cleanup
@@ -296,13 +369,15 @@
   (interactive)
   (gscholar-bibtex--write-bibtex-to-file-impl "Write BibTeX entry to file: "))
 
-(defun gcholar-bibtex-quit-entry-window ()
+(defun gscholar-bibtex-quit-entry-window ()
   (interactive)
   (gscholar-bibtex-guard)
-  (let ((entry-window (get-buffer-window gscholar-bibtex-entry-buffer-name)))
+  (let ((gscholar-window (selected-window))
+        (entry-window (get-buffer-window gscholar-bibtex-entry-buffer-name)))
     (when entry-window
       (select-window entry-window)
-      (delete-window))))
+      (delete-window)
+      (select-window gscholar-window))))
 
 (defun gscholar-bibtex-quit-gscholar-window ()
   (interactive)
@@ -310,10 +385,7 @@
   (let ((gscholar-window (selected-window))
         (entry-window (get-buffer-window gscholar-bibtex-entry-buffer-name))
         (caller-window (get-buffer-window gscholar-bibtex-caller-buffer)))
-    (when entry-window
-      (select-window entry-window)
-      (delete-window)
-      (select-window gscholar-window))
+    (gscholar-bibtex-quit-entry-window)
     (if (or (eq caller-window gscholar-window)
             (eq caller-window entry-window)
             (not (buffer-live-p gscholar-bibtex-caller-buffer)))
@@ -328,14 +400,14 @@
     (dolist (pair gscholar-bibtex-function-suffixes-alist retval)
       (unless
           (fboundp
-           (gscholar-bibtex-get-func-name (car pair) source-symbol))
+           (gscholar-bibtex--get-dispatch-func-name (car pair) source-symbol))
         (setq retval nil)))
     (unless retval
       (error
        "Installation failed! You need to define all necessary functions!"))
-    (push `(,source-name . ,source-symbol) gscholar-bibtex-sources)))
+    (push `(,source-name . ,source-symbol) gscholar-bibtex-available-sources)))
 
-(defun gscholar-bibtex-get-func-name (kind source-symbol)
+(defun gscholar-bibtex--get-dispatch-func-name (kind source-symbol)
   (intern
    (concat
     "gscholar-bibtex-"
@@ -346,10 +418,44 @@
 ;;; dispatcher
 (defun gscholar-bibtex-dispatcher (kind arg)
   (funcall
-   (gscholar-bibtex-get-func-name
+   (gscholar-bibtex--get-dispatch-func-name
     kind
-    (assoc-default gscholar-bibtex-selected-source gscholar-bibtex-sources))
+    (assoc-default gscholar-bibtex-selected-source
+                   gscholar-bibtex-enabled-sources))
    arg))
+
+(defun gscholar-bibtex--get-list-symbol-pair (action)
+  (let* ((alist '((:on . ("disabled" . "enabled"))
+                  (:off . ("enabled" . "disabled"))))
+         (names (assoc-default action alist))
+         (build-name (lambda (s)
+                       (intern (concat "gscholar-bibtex-" s "-sources")))))
+    `(,(funcall build-name (car names)) . ,(funcall build-name (cdr names)))))
+
+(defun gscholar-bibtex-source-on-off (action source-name)
+  (let* ((prompt (if (eq action :on) "available" "enabled"))
+         (symbol-pair (gscholar-bibtex--get-list-symbol-pair action))
+         (source-list (car symbol-pair))
+         (dest-list (cdr symbol-pair))
+         (source-pair (assoc source-name (symbol-value source-list))))
+    (if source-pair
+        (progn
+          (set source-list
+               (remove source-pair (symbol-value source-list)))
+          (push source-pair (symbol-value dest-list)))
+      (message
+       (concat "Please choose from the " prompt " sources!")))))
+
+(defun gscholar-bibtex--source-on-off-interactive-impl (action)
+  (let ((source-list (car (gscholar-bibtex--get-list-symbol-pair action)))
+        source-name)
+    (while (and (symbol-value source-list)
+                (not
+                 (string= "" (setq source-name
+                                   (completing-read
+                                    "Source[empty to exit]:"
+                                    (symbol-value source-list))))))
+      (gscholar-bibtex-source-on-off action source-name))))
 
 ;;; acm
 (defun gscholar-bibtex-acm-search-results (query)
@@ -365,7 +471,6 @@
                      "&")))
     (gscholar-bibtex--url-retrieve-as-string
      "http://dl.acm.org/results.cfm?h=1")))
-
 (defun gscholar-bibtex-acm-titles (buffer-content)
   (gscholar-bibtex-re-search
    buffer-content
@@ -380,7 +485,8 @@
   (mapcar
    (lambda (href)
      (let ((retval href)
-           (pair-list '(("coll=DL&dl=GUIDE" . "expformat=bibtex")
+           (case-fold-search t)
+           (pair-list '(("coll=DL" . "expformat=bibtex")
                         ("id" . "parent_id")
                         ("\\." . "&id=")
                         ("cfm" . "downformats.cfm"))))
@@ -395,7 +501,51 @@
   (gscholar-bibtex--url-retrieve-as-string
    (concat "http://dl.acm.org/" bibtex-url)))
 
-;; Google Scholar
+;;; ieee
+(defun gscholar-bibtex-ieee-search-results (query)
+  (let* ((url-request-method "GET"))
+    (gscholar-bibtex--url-retrieve-as-string
+     (concat
+      "http://ieeexplore.ieee.org/search/searchresult.jsp?queryText="
+      (url-hexify-string query)))))
+
+(defun gscholar-bibtex-ieee-titles (buffer-content)
+  (gscholar-bibtex-re-search
+   buffer-content
+   "Select this article: \\(.*\\) type" 1))
+
+(defun gscholar-bibtex-ieee-subtitles (buffer-content)
+  (gscholar-bibtex-re-search
+   buffer-content
+   "<a.*?class=\"authorPreferredName[^>]*?>\\([[:space:][:print:]]*?\\)<a href='.." 1))
+
+(defun gscholar-bibtex-ieee-bibtex-urls (buffer-content)
+  (gscholar-bibtex-re-search
+   buffer-content
+   "<input.*id=\'\\(.*\\)\'" 1))
+
+(defun gscholar-bibtex-ieee-bibtex-content (bibtex-id)
+  (let* ((url-request-method "POST")
+         (url-request-extra-headers
+          '(("Content-Type" . "application/x-www-form-urlencoded")))
+         (url-request-data
+          (mapconcat (lambda (arg)
+                       (concat (url-hexify-string (car arg))
+                               "="
+                               (url-hexify-string (cdr arg))))
+                     `(("recordIds" . ,bibtex-id)
+                       ("citations-format" . "citation-only")
+                       ("download-format" . "download-bibtex"))
+                     "&"))
+         (pair-list '(("<br>\\|\r" . "")
+                      ("\n\n+" . "\n")
+                      ("\n *" . "\n  ")))
+         (retval (gscholar-bibtex--url-retrieve-as-string
+                  "http://ieeexplore.ieee.org/xpl/downloadCitations")))
+    (dolist (pair pair-list retval)
+      (setq retval (replace-regexp-in-string (car pair) (cdr pair) retval)))))
+
+;;; Google Scholar
 (defun gscholar-bibtex-google-scholar-search-results (query)
   (let* ((url-request-method "GET")
          (random-id (format "%016x" (random (expt 16 16))))
@@ -422,13 +572,29 @@
    (concat "http://scholar.google.com" bibtex-url)))
 
 ;;;###autoload
+(defun gscholar-bibtex-turn-on-sources ()
+  (interactive)
+  (gscholar-bibtex--source-on-off-interactive-impl :on))
+
+;;;###autoload
+(defun gscholar-bibtex-turn-off-sources ()
+  (interactive)
+  (gscholar-bibtex--source-on-off-interactive-impl :off))
+
+;;;###autoload
 (defun gscholar-bibtex ()
   (interactive)
-  (setq gscholar-bibtex-selected-source
-        (completing-read "Select a source: " gscholar-bibtex-sources))
-  (unless (assoc gscholar-bibtex-sources gscholar-bibtex-sources)
+  (if (= 1 (length gscholar-bibtex-enabled-sources))
+      (setq gscholar-bibtex-selected-source
+            (caar gscholar-bibtex-enabled-sources))
+    (setq gscholar-bibtex-selected-source
+          (completing-read "Select a source: "
+                           gscholar-bibtex-enabled-sources)))
+  (unless (assoc gscholar-bibtex-selected-source
+                 gscholar-bibtex-enabled-sources)
     (error "Please select an installed source!"))
-  (let* ((query (read-string "Query: "))
+  (let* ((query (read-string
+                 (concat "Query[" gscholar-bibtex-selected-source "]: ")))
          (search-results (gscholar-bibtex-dispatcher :search-results query))
          (titles (gscholar-bibtex-dispatcher :titles search-results))
          (subtitles (gscholar-bibtex-dispatcher :subtitles search-results))
@@ -454,8 +620,15 @@
     (gscholar-bibtex-show-help)))
 
 ;; install sources
+(gscholar-bibtex-install-source "IEEE Xplore" 'ieee)
 (gscholar-bibtex-install-source "ACM Digital Library" 'acm)
 (gscholar-bibtex-install-source "Google Scholar" 'google-scholar)
+;; initalize
+(setq gscholar-bibtex-disabled-sources gscholar-bibtex-available-sources)
+;; enable all
+(gscholar-bibtex-source-on-off :on "Google Scholar")
+(gscholar-bibtex-source-on-off :on "ACM Digital Library")
+(gscholar-bibtex-source-on-off :on "IEEE Xplore")
 
 (eval-after-load 'evil
   '(add-to-list 'evil-emacs-state-modes 'gscholar-bibtex-mode))

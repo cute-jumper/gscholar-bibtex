@@ -1,13 +1,22 @@
 * gscholar bibtex
   [[http://melpa.org/#/gscholar-bibtex][file:http://melpa.org/packages/gscholar-bibtex-badge.svg]]
 
-  Retrieve BibTeX entries from Google Scholar by your query. All in Emacs-lisp!
+  Retrieve BibTeX entries from Google Scholar, ACM Digital Library and IEEE
+  Xplore by your query. All in Emacs Lisp!
+
+  *UPDATE*: ACM Digital Library and IEEE Xplore are now supported though the
+   package name doesn't suggest that.
 ** Basic usage
+   Without =package.el=:
   : (add-to-list 'load-path "/path/to/gscholar-bibtex.el")
   : (require 'gscholar-bibtex)
+
+   With =package.el=: install via melpa!
+
+   To use, simply call
   : M-x gscholar-bibtex
 
-  Then enter your query and select the results.
+  Choose a source, then enter your query and select the results.
 
   Available commands in `gscholar-bibtex-mode', /i.e./, in the window of search
   results:
@@ -18,7 +27,25 @@
   - c: close BibTeX entry window
   - q: quit
 
-** Configure `gscholar-bibtex-database-file'
+** Sources
+  By default, I enable all three sources(Google Scholar, ACM Digital Library and
+  IEEE Xplore). If you don't want to enable some of them, you could call
+  : M-x gscholar-bibtex-turn-off-sources
+
+  Similarly, if you want to enable some of them, you could call
+  : M-x gscholar-bibtex-turn-on-sources
+
+  To keep the configuration in your init file, you could use the following
+  format(*NOT* real code):
+  : (gscholar-bibtex-source-on-off action source-name) 
+
+  /action/: :on or :off
+  /source-name/: "Google Scholar", "ACM Digital Library" or "IEEE Xplore"
+  
+  Say if you want to disable "IEEE Xplore", use the following code:
+  : (gscholar-bibtex-source-on-off :off "IEEE Xplore")
+
+** Configuring `gscholar-bibtex-database-file'
    If you have a master BibTeX file, say =refs.bib=, as database, and want to
    append/write the BibTeX entry to =refs.bib= without being asked for a
    filename to be written every time, you can set
@@ -27,3 +54,41 @@
 
    Then use "A" or "W" to append or write to =refs.bib=, respectively.
   
+** Adding more sources
+   Currently these three sources cover nearly all my needs, and it is possible
+   if you need to add more sources.
+
+   Basically, you need to implement following five functions(if you're willing,
+   I think looking the source code is better. The implementation is easy!):
+#+BEGIN_SRC elisp
+(defun gscholar-bibtex-SourceName-search-results (query)
+"In the body, call `gscholar-bibtex--url-retrieve-as-string' to return a string
+containing query results"
+  body)
+
+(defun gscholar-bibtex-SourceName-titles (buffer-content)
+"Given the query string `buffer-content', return the list of titles"
+  body)
+
+(defun gscholar-bibtex-SourceName-subtitles (buffer-content)
+"Given the query string `buffer-content', return the list of subtitles"
+  body)
+
+(defun gscholar-bibtex-SourceName-bibtex-urls (buffer-content)
+"Given the query string `buffer-content', return the list of urls(or maybe other
+ feature) of the BibTeX entries, which would be fed to the next function"
+  body)
+
+(defun gscholar-bibtex-SourceName-bibtex-content (arg)
+"Given the url(or other feature) of a BibTeX entry, return the entry as string.
+Also call `gscholar-bibtex--url-retrieve-as-string' for convenience"
+  body)
+#+END_SRC
+   
+   Then you need to add a line:
+   : (gscholar-bibtex-install-source "Source Name" 'SourceName)
+   
+   You should put this line somewhere near the end of `gscholar-bibtex.el',
+   where you could find several `gscholar-bibtex-install-source' lines.
+
+   That's all. Enjoy hacking^_^
