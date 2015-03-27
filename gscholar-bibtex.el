@@ -626,11 +626,11 @@
 ;; initalize
 (setq gscholar-bibtex-disabled-sources gscholar-bibtex-available-sources)
 ;; enable all
-(gscholar-bibtex-source-on-off :on "Google Scholar")
-(gscholar-bibtex-source-on-off :on "ACM Digital Library")
 (gscholar-bibtex-source-on-off :on "IEEE Xplore")
+(gscholar-bibtex-source-on-off :on "ACM Digital Library")
+(gscholar-bibtex-source-on-off :on "Google Scholar")
 
-(eval-after-load 'evil
+(eval-after-load "evil"
   '(add-to-list 'evil-emacs-state-modes 'gscholar-bibtex-mode))
 
 (provide 'gscholar-bibtex)
