@@ -5,6 +5,7 @@
 ;; Author: Junpeng Qiu <qjpchmail@gmail.com>
 ;; Keywords: extensions
 ;; Version: 0.1
+;; Package-Requires: ((cl-lib "1.0"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -23,11 +24,11 @@
 
 ;; * gscholar bibtex
 
-;;   Retrieve BibTeX entries from Google Scholar, ACM Digital Library and IEEE
-;;   Xplore by your query. All in Emacs Lisp!
+;;   Retrieve BibTeX entries from Google Scholar, ACM Digital Library, IEEE
+;;   Xplore, and DBLP by your query. All in Emacs Lisp!
 
-;;   *UPDATE*: ACM Digital Library and IEEE Xplore are now supported though the
-;;    package name doesn't suggest that.
+;;   *UPDATE*: ACM Digital Library, IEEE Xplore, and DBLP are now supported
+;;    though the package name doesn't suggest that.
 ;; ** Basic usage
 ;;    Without =package.el=:
 ;;   : (add-to-list 'load-path "/path/to/gscholar-bibtex.el")
@@ -50,8 +51,9 @@
 ;;   - q: quit
 
 ;; ** Sources
-;;   By default, I enable all three sources(Google Scholar, ACM Digital Library and
-;;   IEEE Xplore). If you don't want to enable some of them, you could call
+;;   By default, I enable all four sources (Google Scholar, ACM Digital Library,
+;;   IEEE Xplore, and DBLP). If you don't want to enable some of them, you could
+;;   call
 ;;   : M-x gscholar-bibtex-turn-off-sources
 
 ;;   Similarly, if you want to enable some of them, you could call
@@ -62,7 +64,8 @@
 ;;   : (gscholar-bibtex-source-on-off action source-name) 
 
 ;;   /action/: :on or :off
-;;   /source-name/: "Google Scholar", "ACM Digital Library" or "IEEE Xplore"
+;;   /source-name/: "Google Scholar", "ACM Digital Library", "IEEE Xplore", or
+;;                  "DBLP"
   
 ;;   Say if you want to disable "IEEE Xplore", use the following code:
 ;;   : (gscholar-bibtex-source-on-off :off "IEEE Xplore")
@@ -118,6 +121,7 @@
 ;;; Code:
 
 (require 'bibtex)
+(require 'cl-lib)
 
 (defgroup gscholar-bibtex nil
   "Retrieve BibTeX from Google Scholar."
@@ -576,6 +580,41 @@
   (gscholar-bibtex--url-retrieve-as-string
    (concat "http://scholar.google.com" bibtex-url)))
 
+;;; DBLP
+(defun gscholar-bibtex-dblp-search-results (query)
+  (let* ((url-request-method "GET")
+	 (query-url (concat "http://dblp.uni-trier.de/search/publ/api?"
+			    (url-build-query-string `((q ,query) (format xml)))))
+	 (response-buffer (gscholar-bibtex--url-retrieve-as-buffer query-url)))
+    (prog1
+	(with-current-buffer response-buffer
+	  (mapcar (lambda (hit)
+		    (cddr (assq 'info (cddr hit))))
+		  (cddr (assq 'hits (cddr (libxml-parse-xml-region (point-min) (point-max) query-url))))))
+      (kill-buffer response-buffer))))
+
+(defun gscholar-bibtex-dblp-titles (search-results)
+  (mapcar (lambda (info)
+	    (cl-third (assq 'title info)))
+	  search-results))
+
+(defun gscholar-bibtex-dblp-subtitles (search-results)
+  (mapcar (lambda (info)
+	    (mapconcat #'cl-third
+		       (cddr (assq 'authors info))
+		       ", "))
+	  search-results))
+
+(defun gscholar-bibtex-dblp-bibtex-urls (search-results)
+  (mapcar (lambda (info)
+	    (cl-third (assq 'url info)))
+	  search-results))
+
+(defun gscholar-bibtex-dblp-bibtex-content (html-url)
+  (string-match "/rec/" html-url)
+  (gscholar-bibtex--url-retrieve-as-string
+   (replace-match "/rec/bib2/" t t html-url)))
+
 ;;;###autoload
 (defun gscholar-bibtex-turn-on-sources ()
   (interactive)
@@ -625,12 +664,14 @@
     (gscholar-bibtex-show-help)))
 
 ;; install sources
+(gscholar-bibtex-install-source "DBLP" 'dblp)
 (gscholar-bibtex-install-source "IEEE Xplore" 'ieee)
 (gscholar-bibtex-install-source "ACM Digital Library" 'acm)
 (gscholar-bibtex-install-source "Google Scholar" 'google-scholar)
 ;; initalize
 (setq gscholar-bibtex-disabled-sources gscholar-bibtex-available-sources)
 ;; enable all
+(gscholar-bibtex-source-on-off :on "DBLP")
 (gscholar-bibtex-source-on-off :on "IEEE Xplore")
 (gscholar-bibtex-source-on-off :on "ACM Digital Library")
 (gscholar-bibtex-source-on-off :on "Google Scholar")
