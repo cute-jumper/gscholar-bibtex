@@ -272,11 +272,16 @@
    (gscholar-bibtex--replace-html-entities
     (replace-regexp-in-string "<.*?>" "" s))))
 
+(defun gscholar-bibtex--url-retrieve-as-buffer (url)
+  (let ((response-buffer (url-retrieve-synchronously url)))
+    (with-current-buffer response-buffer
+      (gscholar-bibtex--delete-response-header))
+    response-buffer))
+
 (defun gscholar-bibtex--url-retrieve-as-string (url)
-  (let ((response-buffer (url-retrieve-synchronously url))
+  (let ((response-buffer (gscholar-bibtex--url-retrieve-as-buffer url))
         retval)
     (with-current-buffer response-buffer
-      (gscholar-bibtex--delete-response-header)
       (setq retval (buffer-string)))
     (kill-buffer response-buffer)
     retval))
