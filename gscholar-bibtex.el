@@ -1,5 +1,4 @@
-;;; gscholar-bibtex.el --- Retrieve BibTeX from Google Scholar, ACM Digital
-;;; Library, IEEE Xplore and DBLP.
+;;; gscholar-bibtex.el --- Retrieve BibTeX from Google Scholar and other online sources(ACM, IEEE, DBLP)
 
 ;; Copyright (C) 2014  Junpeng Qiu
 
@@ -124,7 +123,7 @@
 (require 'xml)
 
 (defgroup gscholar-bibtex nil
-  "Retrieve BibTeX from Google Scholar."
+  "Retrieve BibTeX from Google Scholar and other online sources(ACM, IEEE, DBLP)."
   :group 'bibtex)
 
 (defconst gscholar-bibtex-version "0.2"
