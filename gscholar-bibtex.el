@@ -23,11 +23,11 @@
 
 ;; * gscholar bibtex
 
-;;   Retrieve BibTeX entries from Google Scholar, ACM Digital Library and IEEE
-;;   Xplore by your query. All in Emacs Lisp!
+;;   Retrieve BibTeX entries from Google Scholar, ACM Digital Library, IEEE
+;;   Xplore, and DBLP by your query. All in Emacs Lisp!
 
-;;   *UPDATE*: ACM Digital Library and IEEE Xplore are now supported though the
-;;    package name doesn't suggest that.
+;;   *UPDATE*: ACM Digital Library, IEEE Xplore, and DBLP are now supported
+;;    though the package name doesn't suggest that.
 ;; ** Basic usage
 ;;    Without =package.el=:
 ;;   : (add-to-list 'load-path "/path/to/gscholar-bibtex.el")
@@ -50,8 +50,9 @@
 ;;   - q: quit
 
 ;; ** Sources
-;;   By default, I enable all three sources(Google Scholar, ACM Digital Library and
-;;   IEEE Xplore). If you don't want to enable some of them, you could call
+;;   By default, I enable all four sources (Google Scholar, ACM Digital Library,
+;;   IEEE Xplore, and DBLP). If you don't want to enable some of them, you could
+;;   call
 ;;   : M-x gscholar-bibtex-turn-off-sources
 
 ;;   Similarly, if you want to enable some of them, you could call
@@ -62,7 +63,8 @@
 ;;   : (gscholar-bibtex-source-on-off action source-name) 
 
 ;;   /action/: :on or :off
-;;   /source-name/: "Google Scholar", "ACM Digital Library" or "IEEE Xplore"
+;;   /source-name/: "Google Scholar", "ACM Digital Library", "IEEE Xplore", or
+;;                  "DBLP"
   
 ;;   Say if you want to disable "IEEE Xplore", use the following code:
 ;;   : (gscholar-bibtex-source-on-off :off "IEEE Xplore")
@@ -118,6 +120,7 @@
 ;;; Code:
 
 (require 'bibtex)
+(require 'xml)
 
 (defgroup gscholar-bibtex nil
   "Retrieve BibTeX from Google Scholar."
@@ -272,11 +275,27 @@
    (gscholar-bibtex--replace-html-entities
     (replace-regexp-in-string "<.*?>" "" s))))
 
+(defun gscholar-bibtex--xml-child (children)
+  (pcase-let ((`(,child) children)) child))
+
+(defun gscholar-bibtex--xml-node-child (node)
+  (gscholar-bibtex--xml-child
+   (xml-node-children node)))
+
+(defun gscholar-bibtex--xml-get-child (node child-name)
+  (gscholar-bibtex--xml-child
+   (xml-get-children node child-name)))
+
+(defun gscholar-bibtex--url-retrieve-as-buffer (url)
+  (let ((response-buffer (url-retrieve-synchronously url)))
+    (with-current-buffer response-buffer
+      (gscholar-bibtex--delete-response-header))
+    response-buffer))
+
 (defun gscholar-bibtex--url-retrieve-as-string (url)
-  (let ((response-buffer (url-retrieve-synchronously url))
+  (let ((response-buffer (gscholar-bibtex--url-retrieve-as-buffer url))
         retval)
     (with-current-buffer response-buffer
-      (gscholar-bibtex--delete-response-header)
       (setq retval (buffer-string)))
     (kill-buffer response-buffer)
     retval))
@@ -571,6 +590,47 @@
   (gscholar-bibtex--url-retrieve-as-string
    (concat "http://scholar.google.com" bibtex-url)))
 
+;;; DBLP
+(defun gscholar-bibtex-dblp-search-results (query)
+  (let* ((url-request-method "GET")
+	 (response-buffer (gscholar-bibtex--url-retrieve-as-buffer
+			   (concat "http://dblp.uni-trier.de/search/publ/api?"
+				   (url-build-query-string
+				    `((q ,query)
+				      (format xml)))))))
+    (with-current-buffer response-buffer
+      (set-buffer-multibyte t))
+    (prog1
+	(pcase-let ((`(,(and result `(result . ,_))) (xml-parse-region nil nil response-buffer)))
+	  (mapcar (lambda (hit)
+		    (gscholar-bibtex--xml-get-child hit 'info))
+		  (xml-get-children (gscholar-bibtex--xml-get-child result 'hits) 'hit)))
+      (kill-buffer response-buffer))))
+
+(defun gscholar-bibtex-dblp-titles (search-results)
+  (mapcar (lambda (info)
+	    (gscholar-bibtex--xml-node-child
+	     (gscholar-bibtex--xml-get-child info 'title)))
+	  search-results))
+
+(defun gscholar-bibtex-dblp-subtitles (search-results)
+  (mapcar (lambda (info)
+	    (mapconcat #'gscholar-bibtex--xml-node-child
+		       (xml-get-children (gscholar-bibtex--xml-get-child info 'authors) 'author)
+		       ", "))
+	  search-results))
+
+(defun gscholar-bibtex-dblp-bibtex-urls (search-results)
+  (mapcar (lambda (info)
+	    (gscholar-bibtex--xml-node-child
+	     (gscholar-bibtex--xml-get-child info 'url)))
+	  search-results))
+
+(defun gscholar-bibtex-dblp-bibtex-content (html-url)
+  (string-match "/rec/" html-url)
+  (gscholar-bibtex--url-retrieve-as-string
+   (replace-match "/rec/bib2/" t t html-url)))
+
 ;;;###autoload
 (defun gscholar-bibtex-turn-on-sources ()
   (interactive)
@@ -620,12 +680,14 @@
     (gscholar-bibtex-show-help)))
 
 ;; install sources
+(gscholar-bibtex-install-source "DBLP" 'dblp)
 (gscholar-bibtex-install-source "IEEE Xplore" 'ieee)
 (gscholar-bibtex-install-source "ACM Digital Library" 'acm)
 (gscholar-bibtex-install-source "Google Scholar" 'google-scholar)
 ;; initalize
 (setq gscholar-bibtex-disabled-sources gscholar-bibtex-available-sources)
 ;; enable all
+(gscholar-bibtex-source-on-off :on "DBLP")
 (gscholar-bibtex-source-on-off :on "IEEE Xplore")
 (gscholar-bibtex-source-on-off :on "ACM Digital Library")
 (gscholar-bibtex-source-on-off :on "Google Scholar")
