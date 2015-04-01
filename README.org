@@ -1,11 +1,11 @@
 * gscholar bibtex
   [[http://melpa.org/#/gscholar-bibtex][file:http://melpa.org/packages/gscholar-bibtex-badge.svg]]
 
-  Retrieve BibTeX entries from Google Scholar, ACM Digital Library and IEEE
-  Xplore by your query. All in Emacs Lisp!
+  Retrieve BibTeX entries from Google Scholar, ACM Digital Library, IEEE Xplore
+  and DBLP by your query. All in Emacs Lisp!
 
-  *UPDATE*: ACM Digital Library and IEEE Xplore are now supported though the
-   package name doesn't suggest that.
+  *UPDATE*: ACM Digital Library, IEEE Xplore, and DBLP are now supported though
+   the package name doesn't suggest that.
 ** Basic usage
    Without =package.el=:
   : (add-to-list 'load-path "/path/to/gscholar-bibtex.el")

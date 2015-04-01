@@ -1,4 +1,5 @@
-;;; gscholar-bibtex.el --- Retrieve BibTeX from Google Scholar
+;;; gscholar-bibtex.el --- Retrieve BibTeX from Google Scholar, ACM Digital
+;;; Library, IEEE Xplore and DBLP.
 
 ;; Copyright (C) 2014  Junpeng Qiu
 
