@@ -5,7 +5,6 @@
 ;; Author: Junpeng Qiu <qjpchmail@gmail.com>
 ;; Keywords: extensions
 ;; Version: 0.1
-;; Package-Requires: ((cl-lib "1.0"))
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -121,7 +120,7 @@
 ;;; Code:
 
 (require 'bibtex)
-(require 'cl-lib)
+(require 'xml)
 
 (defgroup gscholar-bibtex nil
   "Retrieve BibTeX from Google Scholar."
@@ -275,6 +274,17 @@
   (gscholar-bibtex--string-cleanup
    (gscholar-bibtex--replace-html-entities
     (replace-regexp-in-string "<.*?>" "" s))))
+
+(defun gscholar-bibtex--xml-child (children)
+  (pcase-let ((`(,child) children)) child))
+
+(defun gscholar-bibtex--xml-node-child (node)
+  (gscholar-bibtex--xml-child
+   (xml-node-children node)))
+
+(defun gscholar-bibtex--xml-get-child (node child-name)
+  (gscholar-bibtex--xml-child
+   (xml-get-children node child-name)))
 
 (defun gscholar-bibtex--url-retrieve-as-buffer (url)
   (let ((response-buffer (url-retrieve-synchronously url)))
@@ -583,31 +593,37 @@
 ;;; DBLP
 (defun gscholar-bibtex-dblp-search-results (query)
   (let* ((url-request-method "GET")
-	 (query-url (concat "http://dblp.uni-trier.de/search/publ/api?"
-			    (url-build-query-string `((q ,query) (format xml)))))
-	 (response-buffer (gscholar-bibtex--url-retrieve-as-buffer query-url)))
+	 (response-buffer (gscholar-bibtex--url-retrieve-as-buffer
+			   (concat "http://dblp.uni-trier.de/search/publ/api?"
+				   (url-build-query-string
+				    `((q ,query)
+				      (format xml)))))))
+    (with-current-buffer response-buffer
+      (set-buffer-multibyte t))
     (prog1
-	(with-current-buffer response-buffer
+	(pcase-let ((`(,(and result `(result . ,_))) (xml-parse-region nil nil response-buffer)))
 	  (mapcar (lambda (hit)
-		    (cddr (assq 'info (cddr hit))))
-		  (cddr (assq 'hits (cddr (libxml-parse-xml-region (point-min) (point-max) query-url))))))
+		    (gscholar-bibtex--xml-get-child hit 'info))
+		  (xml-get-children (gscholar-bibtex--xml-get-child result 'hits) 'hit)))
       (kill-buffer response-buffer))))
 
 (defun gscholar-bibtex-dblp-titles (search-results)
   (mapcar (lambda (info)
-	    (cl-third (assq 'title info)))
+	    (gscholar-bibtex--xml-node-child
+	     (gscholar-bibtex--xml-get-child info 'title)))
 	  search-results))
 
 (defun gscholar-bibtex-dblp-subtitles (search-results)
   (mapcar (lambda (info)
-	    (mapconcat #'cl-third
-		       (cddr (assq 'authors info))
+	    (mapconcat #'gscholar-bibtex--xml-node-child
+		       (xml-get-children (gscholar-bibtex--xml-get-child info 'authors) 'author)
 		       ", "))
 	  search-results))
 
 (defun gscholar-bibtex-dblp-bibtex-urls (search-results)
   (mapcar (lambda (info)
-	    (cl-third (assq 'url info)))
+	    (gscholar-bibtex--xml-node-child
+	     (gscholar-bibtex--xml-get-child info 'url)))
 	  search-results))
 
 (defun gscholar-bibtex-dblp-bibtex-content (html-url)
