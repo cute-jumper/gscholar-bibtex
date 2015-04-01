@@ -22,12 +22,13 @@
 ;;; Commentary:
 
 ;; * gscholar bibtex
+;;   [[http://melpa.org/#/gscholar-bibtex][file:http://melpa.org/packages/gscholar-bibtex-badge.svg]]
 
-;;   Retrieve BibTeX entries from Google Scholar, ACM Digital Library, IEEE
-;;   Xplore, and DBLP by your query. All in Emacs Lisp!
+;;   Retrieve BibTeX entries from Google Scholar, ACM Digital Library, IEEE Xplore
+;;   and DBLP by your query. All in Emacs Lisp!
 
-;;   *UPDATE*: ACM Digital Library, IEEE Xplore, and DBLP are now supported
-;;    though the package name doesn't suggest that.
+;;   *UPDATE*: ACM Digital Library, IEEE Xplore, and DBLP are now supported though
+;;    the package name doesn't suggest that.
 ;; ** Basic usage
 ;;    Without =package.el=:
 ;;   : (add-to-list 'load-path "/path/to/gscholar-bibtex.el")
@@ -50,9 +51,8 @@
 ;;   - q: quit
 
 ;; ** Sources
-;;   By default, I enable all four sources (Google Scholar, ACM Digital Library,
-;;   IEEE Xplore, and DBLP). If you don't want to enable some of them, you could
-;;   call
+;;   By default, I enable all sources(Google Scholar, ACM Digital Library, IEEE
+;;   Xplore and DBLP). If you don't want to enable some of them, you could call
 ;;   : M-x gscholar-bibtex-turn-off-sources
 
 ;;   Similarly, if you want to enable some of them, you could call
@@ -62,12 +62,24 @@
 ;;   format(*NOT* real code):
 ;;   : (gscholar-bibtex-source-on-off action source-name) 
 
-;;   /action/: :on or :off
-;;   /source-name/: "Google Scholar", "ACM Digital Library", "IEEE Xplore", or
-;;                  "DBLP"
+;;   Possible values:
+;;   - /action/: :on or :off
+;;   - /source-name/: "Google Scholar", "ACM Digital Library" or "IEEE Xplore"
   
 ;;   Say if you want to disable "IEEE Xplore", use the following code:
 ;;   : (gscholar-bibtex-source-on-off :off "IEEE Xplore")
+
+;; ** Default source
+;;   If you have a preferred source, you can set it as default so you don't have to
+;;   type the name to select the source every time you call `gscholar-bibtex'. Say
+;;   if you want to set "Google Scholar" as default:
+;;   : (setq gscholar-bibtex-default-source "Google Scholar")
+
+;;   Note that in order to make it work, you have to make sure the source name is
+;;   correct and you don't disable the source that you set as default, otherwise
+;;   the default source setting has no effect. Besides, if you only have one source
+;;   enabled, then the enabled source automatically becomes the default, regardless
+;;   of the value of `gscholar-bibtex-default-source'.
 
 ;; ** Configuring `gscholar-bibtex-database-file'
 ;;    If you have a master BibTeX file, say =refs.bib=, as database, and want to
@@ -155,6 +167,9 @@
 
 (defvar gscholar-bibtex-selected-source nil
   "Currently selected source")
+
+(defvar gscholar-bibtex-default-source nil
+  "Default source name")
 
 (defconst gscholar-bibtex-result-buffer-name "*gscholar-bibtex Search Results*"
   "Buffer name for Google Scholar search results")
@@ -647,9 +662,21 @@
   (if (= 1 (length gscholar-bibtex-enabled-sources))
       (setq gscholar-bibtex-selected-source
             (caar gscholar-bibtex-enabled-sources))
+    (let* ((default-source (assoc
+                            gscholar-bibtex-default-source
+                            gscholar-bibtex-enabled-sources))
+           (source-prompt (if default-source
+                              (concat "Select a source[default "
+                                      gscholar-bibtex-default-source
+                                   "]: ")
+                            "Select a source: "))     
+           (selected-source
+            (completing-read source-prompt
+                             gscholar-bibtex-enabled-sources)))
     (setq gscholar-bibtex-selected-source
-          (completing-read "Select a source: "
-                           gscholar-bibtex-enabled-sources)))
+          (if (string= "" selected-source)
+              gscholar-bibtex-default-source
+            selected-source))))
   (unless (assoc gscholar-bibtex-selected-source
                  gscholar-bibtex-enabled-sources)
     (error "Please select an installed source!"))

@@ -28,8 +28,8 @@
   - q: quit
 
 ** Sources
-  By default, I enable all three sources(Google Scholar, ACM Digital Library and
-  IEEE Xplore). If you don't want to enable some of them, you could call
+  By default, I enable all sources(Google Scholar, ACM Digital Library, IEEE
+  Xplore and DBLP). If you don't want to enable some of them, you could call
   : M-x gscholar-bibtex-turn-off-sources
 
   Similarly, if you want to enable some of them, you could call
@@ -45,6 +45,18 @@
   
   Say if you want to disable "IEEE Xplore", use the following code:
   : (gscholar-bibtex-source-on-off :off "IEEE Xplore")
+
+** Default source
+  If you have a preferred source, you can set it as default so you don't have to
+  type the name to select the source every time you call `gscholar-bibtex'. Say
+  if you want to set "Google Scholar" as default:
+  : (setq gscholar-bibtex-default-source "Google Scholar")
+
+  Note that in order to make it work, you have to make sure the source name is
+  correct and you don't disable the source that you set as default, otherwise
+  the default source setting has no effect. Besides, if you only have one source
+  enabled, then the enabled source automatically becomes the default, regardless
+  of the value of `gscholar-bibtex-default-source'.
 
 ** Configuring `gscholar-bibtex-database-file'
    If you have a master BibTeX file, say =refs.bib=, as database, and want to
