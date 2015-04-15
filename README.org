@@ -80,15 +80,15 @@ containing query results"
   body)
 
 (defun gscholar-bibtex-SourceName-titles (buffer-content)
-"Given the query string `buffer-content', return the list of titles"
+"Given the `buffer-content', return the list of titles"
   body)
 
 (defun gscholar-bibtex-SourceName-subtitles (buffer-content)
-"Given the query string `buffer-content', return the list of subtitles"
+"Given the `buffer-content', return the list of subtitles"
   body)
 
 (defun gscholar-bibtex-SourceName-bibtex-urls (buffer-content)
-"Given the query string `buffer-content', return the list of urls(or maybe other
+"Given the `buffer-content', return the list of urls(or maybe other
  feature) of the BibTeX entries, which would be fed to the next function"
   body)
 
