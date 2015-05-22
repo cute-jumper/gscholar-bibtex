@@ -63,7 +63,7 @@
 
 ;;   Possible values:
 ;;   - action: :on or :off
-;;   - source-name: "Google Scholar", "ACM Digital Library" or "IEEE Xplore"
+;;   - source-name: "Google Scholar", "ACM Digital Library", "IEEE Xplore" or "DBLP"
 
 ;;   Say if you want to disable "IEEE Xplore", use the following code:
 ;;       (gscholar-bibtex-source-on-off :off "IEEE Xplore")
