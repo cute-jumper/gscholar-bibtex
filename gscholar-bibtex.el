@@ -59,12 +59,12 @@
 
 ;;   To keep the configuration in your init file, you could use the following
 ;;   format(*NOT* real code):
-;;       (gscholar-bibtex-source-on-off action source-name) 
+;;       (gscholar-bibtex-source-on-off action source-name)
 
 ;;   Possible values:
 ;;   - action: :on or :off
 ;;   - source-name: "Google Scholar", "ACM Digital Library" or "IEEE Xplore"
-  
+
 ;;   Say if you want to disable "IEEE Xplore", use the following code:
 ;;       (gscholar-bibtex-source-on-off :off "IEEE Xplore")
 
@@ -88,7 +88,7 @@
 ;;        (setq gscholar-bibtex-database-file "/path/to/refs.bib")
 
 ;;    Then use "A" or "W" to append or write to refs.bib, respectively.
-  
+
 ;; ** Adding more sources
 ;;    Currently these three sources cover nearly all my needs, and it is possible
 ;;    if you need to add more sources.
@@ -119,10 +119,10 @@
 ;; Also call `gscholar-bibtex--url-retrieve-as-string' for convenience"
 ;;   body)
 ;; #+END_SRC
-   
+
 ;;    Then you need to add a line:
 ;;        (gscholar-bibtex-install-source "Source Name" 'SourceName)
-   
+
 ;;    You should put this line somewhere near the end of `gscholar-bibtex.el',
 ;;    where you could find several `gscholar-bibtex-install-source' lines.
 
@@ -265,8 +265,8 @@
     (/ (1- line-number) gscholar-bibtex-item-height)))
 
 (defun gscholar-bibtex--delete-response-header ()
-  (let (header-end)
-    (ignore-errors
+  (ignore-errors
+    (save-match-data
       (goto-char (point-min))
       (delete-region (point-min)
                      (1+ (re-search-forward "^$" nil t)))
@@ -315,14 +315,15 @@
     retval))
 
 (defun gscholar-bibtex-re-search (buffer-content surrounding-regexp subexp-count)
-  (with-temp-buffer
-    (insert buffer-content)
-    (let (retval)
-      (goto-char (point-min))
-      (while (re-search-forward surrounding-regexp nil t)
-        (push (gscholar-bibtex--html-value-cleanup
-               (match-string-no-properties subexp-count)) retval))
-      (nreverse retval))))
+  (save-match-data
+    (with-temp-buffer
+      (insert buffer-content)
+      (let (retval)
+        (goto-char (point-min))
+        (while (re-search-forward surrounding-regexp nil t)
+          (push (gscholar-bibtex--html-value-cleanup
+                 (match-string-no-properties subexp-count)) retval))
+        (nreverse retval)))))
 
 (defun gscholar-bibtex-next-item ()
   (interactive)
@@ -667,15 +668,15 @@
            (source-prompt (if default-source
                               (concat "Select a source[default "
                                       gscholar-bibtex-default-source
-                                   "]: ")
-                            "Select a source: "))     
+                                      "]: ")
+                            "Select a source: "))
            (selected-source
             (completing-read source-prompt
                              gscholar-bibtex-enabled-sources)))
-    (setq gscholar-bibtex-selected-source
-          (if (string= "" selected-source)
-              gscholar-bibtex-default-source
-            selected-source))))
+      (setq gscholar-bibtex-selected-source
+            (if (string= "" selected-source)
+                gscholar-bibtex-default-source
+              selected-source))))
   (unless (assoc gscholar-bibtex-selected-source
                  gscholar-bibtex-enabled-sources)
     (error "Please select an installed source!"))
@@ -718,6 +719,8 @@
 (gscholar-bibtex-source-on-off :on "ACM Digital Library")
 (gscholar-bibtex-source-on-off :on "Google Scholar")
 
+;; Remove byte compilation warnings
+(defvar evil-emacs-state-modes)
 (eval-after-load "evil"
   '(add-to-list 'evil-emacs-state-modes 'gscholar-bibtex-mode))
 
