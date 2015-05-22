@@ -608,38 +608,38 @@
 ;;; DBLP
 (defun gscholar-bibtex-dblp-search-results (query)
   (let* ((url-request-method "GET")
-	 (response-buffer (gscholar-bibtex--url-retrieve-as-buffer
-			   (concat "http://dblp.uni-trier.de/search/publ/api?"
-				   (url-build-query-string
-				    `((q ,query)
-				      (format xml)))))))
+         (response-buffer (gscholar-bibtex--url-retrieve-as-buffer
+                           (concat "http://dblp.uni-trier.de/search/publ/api?"
+                                   (url-build-query-string
+                                    `((q ,query)
+                                      (format xml)))))))
     (with-current-buffer response-buffer
       (set-buffer-multibyte t))
     (prog1
-	(pcase-let ((`(,(and result `(result . ,_))) (xml-parse-region nil nil response-buffer)))
-	  (mapcar (lambda (hit)
-		    (gscholar-bibtex--xml-get-child hit 'info))
-		  (xml-get-children (gscholar-bibtex--xml-get-child result 'hits) 'hit)))
+        (pcase-let ((`(,(and result `(result . ,_))) (xml-parse-region nil nil response-buffer)))
+          (mapcar (lambda (hit)
+                    (gscholar-bibtex--xml-get-child hit 'info))
+                  (xml-get-children (gscholar-bibtex--xml-get-child result 'hits) 'hit)))
       (kill-buffer response-buffer))))
 
 (defun gscholar-bibtex-dblp-titles (search-results)
   (mapcar (lambda (info)
-	    (gscholar-bibtex--xml-node-child
-	     (gscholar-bibtex--xml-get-child info 'title)))
-	  search-results))
+            (gscholar-bibtex--xml-node-child
+             (gscholar-bibtex--xml-get-child info 'title)))
+          search-results))
 
 (defun gscholar-bibtex-dblp-subtitles (search-results)
   (mapcar (lambda (info)
-	    (mapconcat #'gscholar-bibtex--xml-node-child
-		       (xml-get-children (gscholar-bibtex--xml-get-child info 'authors) 'author)
-		       ", "))
-	  search-results))
+            (mapconcat #'gscholar-bibtex--xml-node-child
+                       (xml-get-children (gscholar-bibtex--xml-get-child info 'authors) 'author)
+                       ", "))
+          search-results))
 
 (defun gscholar-bibtex-dblp-bibtex-urls (search-results)
   (mapcar (lambda (info)
-	    (gscholar-bibtex--xml-node-child
-	     (gscholar-bibtex--xml-get-child info 'url)))
-	  search-results))
+            (gscholar-bibtex--xml-node-child
+             (gscholar-bibtex--xml-get-child info 'url)))
+          search-results))
 
 (defun gscholar-bibtex-dblp-bibtex-content (html-url)
   (string-match "/rec/" html-url)
