@@ -138,43 +138,43 @@
   :group 'bibtex)
 
 (defconst gscholar-bibtex-version "0.2"
-  "gscholar-bibtex version number")
+  "`gscholar-bibtex' version number.")
 
 (defvar gscholar-bibtex-caller-buffer nil
-  "Buffer that calls gscholar-bibtex")
+  "Buffer that calls `gscholar-bibtex'.")
 
 (defvar gscholar-bibtex-urls-cache nil
-  "Cache for all the urls of BibTeX entries")
+  "Cache for all the urls of BibTeX entries.")
 
 (defvar gscholar-bibtex-entries-cache nil
-  "Cache for the retrieved BibTeX entries")
+  "Cache for the retrieved BibTeX entries.")
 
 (defvar gscholar-bibtex-database-file nil
-  "Default BibTeX database file")
+  "Default BibTeX database file.")
 
 (defconst gscholar-bibtex-item-height 3
-  "The height for each item")
+  "The height for each item.")
 
 (defvar gscholar-bibtex-available-sources nil
-  "Avaiable sources for query")
+  "Avaiable sources for query.")
 
 (defvar gscholar-bibtex-enabled-sources nil
-  "List of enabled sources")
+  "List of enabled sources.")
 
 (defvar gscholar-bibtex-disabled-sources nil
-  "List of disabled sources")
+  "List of disabled sources.")
 
 (defvar gscholar-bibtex-selected-source nil
-  "Currently selected source")
+  "Currently selected source.")
 
 (defvar gscholar-bibtex-default-source nil
-  "Default source name")
+  "Default source name.")
 
 (defconst gscholar-bibtex-result-buffer-name "*gscholar-bibtex Search Results*"
-  "Buffer name for Google Scholar search results")
+  "Buffer name for Google Scholar search results.")
 
 (defconst gscholar-bibtex-entry-buffer-name "*BibTeX entry*"
-  "Buffer name for BibTeX entry")
+  "Buffer name for BibTeX entry.")
 
 (defconst gscholar-bibtex-function-suffixes-alist
   '((:search-results . "search-results")
@@ -186,7 +186,7 @@
 (defconst gscholar-bibtex-help
   "[n/p] next/previous; [TAB] show BibTeX entry; [A/W] append/write to database;\
  [a/w] append/write to file; [c] close BibTeX entry window; [q] quit;"
-  "Help string for gscholar-bibtex")
+  "Help string for `gscholar-bibtex'.")
 
 ;; Face related
 (defface gscholar-bibtex-title
@@ -203,7 +203,7 @@
   (let ((ov (make-overlay 1 1)))
     (overlay-put ov 'face 'highlight)
     ov)
-  "Overlay for item highlight")
+  "Overlay for item highlight.")
 
 (defun gscholar-bibtex--move-to-line (N)
   (goto-char (point-min))
@@ -377,7 +377,7 @@
           (write-region nil nil gscholar-bibtex-database-file append))
         (message "%s BibTeX entry to %s" (if append "Append" "Write")
                  gscholar-bibtex-database-file))
-    (error "Please set `gscholar-bibtex-database-file' first.")))
+    (error "Please set `gscholar-bibtex-database-file' first")))
 
 (defun gscholar-bibtex-append-bibtex-to-database ()
   (interactive)
