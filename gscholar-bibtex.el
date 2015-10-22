@@ -184,8 +184,14 @@
     (:bibtex-content . "bibtex-content")))
 
 (defconst gscholar-bibtex-help
-  "[n/p] next/previous; [TAB] show BibTeX entry; [A/W] append/write to database;\
- [a/w] append/write to file; [c] close BibTeX entry window; [q] quit;"
+  (let ((help-message "[<n>/<p>] next/previous; [<TAB>] show BibTeX entry; [<A>/<W>] append/write to database;\
+ [<a>/<w>] append/write to file; [<c>] close BibTeX entry window; [<q>] quit;"))
+    (while (string-match "<\\([a-zA-Z]+\\)>" help-message)
+      (setq help-message
+            (replace-match
+             (propertize (match-string 1 help-message) 'face 'font-lock-type-face)
+             t t help-message)))
+    help-message)
   "Help string for `gscholar-bibtex'.")
 
 ;; Face related
@@ -244,7 +250,7 @@
             nil t))
 
 (defun gscholar-bibtex-show-help ()
-  (message gscholar-bibtex-help))
+  (message "%s" gscholar-bibtex-help))
 
 (defun gscholar-bibtex-guard ()
   (unless (eq major-mode 'gscholar-bibtex-mode)
