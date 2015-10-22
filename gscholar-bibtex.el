@@ -704,7 +704,7 @@
     (erase-buffer)
     (goto-char (point-min))
     (dotimes (i (length titles))
-      (insert "* " (gscholar-bibtex-prettify-title (nth i titles)))
+      (insert (gscholar-bibtex-prettify-title (concat "* " (nth i titles))))
       (newline-and-indent)
       (insert "  "
               (gscholar-bibtex-prettify-subtitle (nth i subtitles)) "\n\n"))
