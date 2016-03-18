@@ -4,7 +4,7 @@
 
 ;; Author: Junpeng Qiu <qjpchmail@gmail.com>
 ;; Keywords: extensions
-;; Version: 0.2
+;; Version: 0.3.1
 
 ;; This program is free software; you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -137,7 +137,7 @@
   "Retrieve BibTeX from Google Scholar and other online sources(ACM, IEEE, DBLP)."
   :group 'bibtex)
 
-(defconst gscholar-bibtex-version "0.2"
+(defconst gscholar-bibtex-version "0.3.1"
   "`gscholar-bibtex' version number.")
 
 (defvar gscholar-bibtex-caller-buffer nil
