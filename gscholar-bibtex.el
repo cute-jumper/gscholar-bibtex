@@ -46,7 +46,8 @@
 ;;   - TAB: show BibTeX entry for current search result
 ;;   - A/W: append/write to `gscholar-bibtex-database-file' (see later)
 ;;   - a/w: append/write to a file
-;;   - c: close BibTeX entry window
+;;   - c: copy the current BibTeX entry
+;;   - x: close BibTeX entry window
 ;;   - q: quit
 
 ;; ** Sources
