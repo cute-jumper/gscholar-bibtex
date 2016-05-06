@@ -177,6 +177,10 @@
 (defconst gscholar-bibtex-entry-buffer-name "*BibTeX entry*"
   "Buffer name for BibTeX entry.")
 
+(defconst gscholar-bibtex-user-agent-string
+  "Mozilla/5.0 (X11; Linux x86_64; rv:46.0) Gecko/20100101 Firefox/46.0"
+  "User agent for `gscholar-bibtex'.")
+
 (defconst gscholar-bibtex-function-suffixes-alist
   '((:search-results . "search-results")
     (:titles . "titles")
@@ -309,9 +313,12 @@
    (xml-get-children node child-name)))
 
 (defun gscholar-bibtex--url-retrieve-as-buffer (url)
-  (let ((response-buffer (url-retrieve-synchronously url)))
+  (let* ((url-request-extra-headers
+          `(("User-Agent" . ,gscholar-bibtex-user-agent-string)))
+         (response-buffer (url-retrieve-synchronously url)))
     (with-current-buffer response-buffer
-      (gscholar-bibtex--delete-response-header))
+      (gscholar-bibtex--delete-response-header)
+      (set-buffer-multibyte t))
     response-buffer))
 
 (defun gscholar-bibtex--url-retrieve-as-string (url)
