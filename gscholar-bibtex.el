@@ -619,7 +619,7 @@
   (gscholar-bibtex-re-search buffer-content "\\(/scholar\.bib.*?\\)\"" 1))
 
 (defun gscholar-bibtex-google-scholar-titles (buffer-content)
-  (gscholar-bibtex-re-search buffer-content "<h3.*?>\\(.*?\\)</h3>" 1))
+  (gscholar-bibtex-re-search buffer-content "<div class=\"gs_ri\"><h3.*?>\\(.*?\\)</h3>" 1))
 
 (defun gscholar-bibtex-google-scholar-subtitles (buffer-content)
   (gscholar-bibtex-re-search
