@@ -221,10 +221,10 @@
   (forward-line (1- N)))
 
 (defun gscholar-bibtex-prettify-title (s)
-  (propertize s 'face 'gscholar-bibtex-title))
+  (propertize (or s "") 'face 'gscholar-bibtex-title))
 
 (defun gscholar-bibtex-prettify-subtitle (s)
-  (propertize s 'face 'gscholar-bibtex-subtitle))
+  (propertize (or s "") 'face 'gscholar-bibtex-subtitle))
 
 (defun gscholar-bibtex-highlight-current-item-hook ()
   (save-excursion
