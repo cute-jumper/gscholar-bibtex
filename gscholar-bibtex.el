@@ -619,7 +619,7 @@
 				     "domain=scholar.google.com")
 			       "; ")))
     (let ((url-current-object
-	   (url-generic-parse-url "http://scholar.google.com ") ))
+	   (url-generic-parse-url "http://scholar.google.com") ))
       (url-cookie-handle-set-cookie my-cookie))
     (gscholar-bibtex--url-retrieve-as-string
      (concat "http://scholar.google.com/scholar?q="
