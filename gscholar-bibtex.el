@@ -706,9 +706,7 @@
   (interactive)
   (gscholar-bibtex--source-on-off-interactive-impl :off))
 
-;;;###autoload
-(defun gscholar-bibtex ()
-  (interactive)
+(defun gscholar-select-source ()
   (if (= 1 (length gscholar-bibtex-enabled-sources))
       (setq gscholar-bibtex-selected-source
             (caar gscholar-bibtex-enabled-sources))
@@ -727,11 +725,18 @@
             (if (string= "" selected-source)
                 gscholar-bibtex-default-source
               selected-source))))
-  (unless (assoc gscholar-bibtex-selected-source
-                 gscholar-bibtex-enabled-sources)
-    (error "Please select an installed source!"))
-  (let* ((query (read-string
-                 (concat "Query[" gscholar-bibtex-selected-source "]: ")))
+  (if (not (assoc gscholar-bibtex-selected-source
+		  gscholar-bibtex-enabled-sources))
+      (error "Please select an installed source!")
+    gscholar-bibtex-selected-source))
+
+;;;###autoload
+(defun gscholar-bibtex (&optional source query)
+  "Look up a string on a bibliographic source such as Google Scholar. When called interactively, prompts for SOURCE and QUERY string. Can be called programmatically with SOURCE (to prompt for QUERY only or SOURCE and QUERY for non-interactive lookup."
+  (interactive)
+  (setq gscholar-bibtex-selected-source (or source (gscholar-select-source)))
+  (let* ((query (or query (read-string
+			   (concat "Query[" gscholar-bibtex-selected-source "]: "))))
          (search-results (gscholar-bibtex-dispatcher :search-results query))
          (titles (gscholar-bibtex-dispatcher :titles search-results))
          (subtitles (gscholar-bibtex-dispatcher :subtitles search-results))
