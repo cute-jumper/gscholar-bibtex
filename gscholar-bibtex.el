@@ -608,6 +608,7 @@
 ;;; Google Scholar
 (defun gscholar-bibtex-google-scholar-search-results (query)
   (let* ((url-request-method "GET")
+         (system-time-locale "C")
          ;; Fabricate a cookie with a random ID that expires in an hour.
          (random-id (format "%016x" (random (expt 16 16))))
          (expiration (format-time-string "%a, %d %b %Y %H:%M:%S.00 %Z"
