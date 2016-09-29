@@ -615,14 +615,14 @@
                                          (time-add (current-time)
                                                    (seconds-to-time 3600)) t))
          (my-cookie (mapconcat #'identity
-                               (list (format "GSP=ID=%s:CF=4; " random-id)
+                               (list (format "GSP=ID=%s:CF=4" random-id)
                                      (format "expires=%s" expiration)
                                      "path=/"
                                      "domain=scholar.google.com")
-                               "; ")))
-    (let ((url-current-object
-           (url-generic-parse-url "http://scholar.google.com") ))
-      (url-cookie-handle-set-cookie my-cookie))
+                               "; "))
+         (url-current-object
+          (url-generic-parse-url "http://scholar.google.com")))
+    (url-cookie-handle-set-cookie my-cookie)
     (gscholar-bibtex--url-retrieve-as-string
      (concat "http://scholar.google.com/scholar?q="
              (url-hexify-string
