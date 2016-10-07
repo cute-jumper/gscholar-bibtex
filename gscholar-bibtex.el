@@ -730,7 +730,7 @@
           (gscholar-bibtex-dispatcher :bibtex-urls search-results))
     (setq gscholar-bibtex-entries-cache
           (make-vector (length gscholar-bibtex-urls-cache) ""))
-    (unless (get-buffer-window gscholar-buffer)
+    (unless (eq gscholar-buffer (window-buffer (selected-window)))
       (switch-to-buffer-other-window gscholar-buffer))
     (setq buffer-read-only nil)
     (erase-buffer)
