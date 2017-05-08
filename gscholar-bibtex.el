@@ -315,7 +315,7 @@
 
 (defun gscholar-bibtex--url-retrieve-as-buffer (url)
   (let* ((url-request-extra-headers
-          `(("User-Agent" . ,gscholar-bibtex-user-agent-string)))
+          (append url-request-extra-headers `(("User-Agent" . ,gscholar-bibtex-user-agent-string))))
          (response-buffer (url-retrieve-synchronously url)))
     (with-current-buffer response-buffer
       (gscholar-bibtex--delete-response-header)
@@ -563,26 +563,33 @@
 
 ;;; ieee
 (defun gscholar-bibtex-ieee-search-results (query)
-  (let* ((url-request-method "GET"))
-    (gscholar-bibtex--url-retrieve-as-string
-     (concat
-      "http://ieeexplore.ieee.org/search/searchresult.jsp?queryText="
-      (url-hexify-string query)))))
+  (let* ((url-request-method "POST")
+         (url-request-extra-headers
+          `(("Content-Type" . "application/json;charset=utf-8")
+            ("Accept" . "application/json, text/plain, */*")))
+         (url-request-data (format "{\"queryText\":\"%s\",\"newsearch\":\"true\"}" query)))
+    (with-current-buffer
+        (gscholar-bibtex--url-retrieve-as-buffer "http://ieeexplore.ieee.org/rest/search")
+      (goto-char (point-min))
+      (assoc-default 'records (json-read)))))
 
-(defun gscholar-bibtex-ieee-titles (buffer-content)
-  (gscholar-bibtex-re-search
-   buffer-content
-   "Select this article: \\(.*\\) type" 1))
+(defun gscholar-bibtex-ieee-titles (records)
+  (mapcar (lambda (record) (replace-regexp-in-string "\\(\\[::\\)\\|\\(::\\]\\)" ""
+                                                 (assoc-default 'title record)))
+          records))
 
-(defun gscholar-bibtex-ieee-subtitles (buffer-content)
-  (gscholar-bibtex-re-search
-   buffer-content
-   "<a.*?class=\"authorPreferredName[^>]*?>\\([[:space:][:print:]]*?\\)<a href='.." 1))
+(defun gscholar-bibtex-ieee-subtitles (records)
+  (mapcar (lambda (record)
+            (concat
+             (mapconcat
+              (lambda (x) (assoc-default 'preferredName x))
+              (assoc-default 'authors record) "; ")
+             " -- "
+             (assoc-default 'publicationTitle record)))
+          records))
 
-(defun gscholar-bibtex-ieee-bibtex-urls (buffer-content)
-  (gscholar-bibtex-re-search
-   buffer-content
-   "<input.*id=\'\\(.*\\)\'" 1))
+(defun gscholar-bibtex-ieee-bibtex-urls (records)
+  (mapcar (lambda (record) (assoc-default 'articleNumber record)) records))
 
 (defun gscholar-bibtex-ieee-bibtex-content (bibtex-id)
   (let* ((url-request-method "POST")
