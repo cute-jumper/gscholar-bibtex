@@ -134,6 +134,7 @@
 (require 'bibtex)
 (require 'xml)
 (require 'url)
+(require 'json)
 
 (defgroup gscholar-bibtex nil
   "Retrieve BibTeX from Google Scholar and other online sources(ACM, IEEE, DBLP)."
