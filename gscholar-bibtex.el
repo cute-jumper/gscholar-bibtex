@@ -566,7 +566,10 @@
   (let* ((url-request-method "POST")
          (url-request-extra-headers
           `(("Content-Type" . "application/json;charset=utf-8")
-            ("Accept" . "application/json, text/plain, */*")))
+            ("Accept" . "application/json, text/plain, */*")
+            ("Referer" .
+             ,(format "http://ieeexplore.ieee.org/search/searchresult.jsp?newsearch=true&queryText=%s"
+                      (url-hexify-string query)))))
          (url-request-data (format "{\"queryText\":\"%s\",\"newsearch\":\"true\"}" query)))
     (with-current-buffer
         (gscholar-bibtex--url-retrieve-as-buffer "http://ieeexplore.ieee.org/rest/search")
