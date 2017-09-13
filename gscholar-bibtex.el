@@ -636,9 +636,17 @@
           (url-generic-parse-url "http://scholar.google.com")))
     (url-cookie-handle-set-cookie my-cookie)
     (gscholar-bibtex--url-retrieve-as-string
-     (concat "http://scholar.google.com/scholar?q="
-             (url-hexify-string
-              (replace-regexp-in-string " " "\+" query))))))
+     (concat "https://scholar.google.com/scholar?q="
+             ;; To prepare the query string, we need to:
+             ;; 1. Remove some extraneous puncutation.
+             ;; 2. Hex-encode it.
+             ;; 3. Convert encoded spaces to +
+             ;; If we encode spaces as + first, url-hexify-string
+             ;; hex-encodes the + symbols, and they are not interpreted
+             ;; properly as spaces on the server.
+             (replace-regexp-in-string "%20" "\+"
+                                       (url-hexify-string
+                                        (replace-regexp-in-string "[:,]" "" query)))))))
 
 (defun gscholar-bibtex-google-scholar-bibtex-urls (buffer-content)
   (gscholar-bibtex-re-search buffer-content "\\(/scholar\.bib.*?\\)\"" 1))
