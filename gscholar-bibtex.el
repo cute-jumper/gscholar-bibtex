@@ -653,7 +653,7 @@
 
 (defun gscholar-bibtex-google-scholar-bibtex-content (bibtex-url)
   (gscholar-bibtex--url-retrieve-as-string
-   (concat "http://scholar.google.com" bibtex-url)))
+   (concat "https://scholar.google.com" bibtex-url)))
 
 ;;; DBLP
 (defun gscholar-bibtex-dblp-search-results (query)
