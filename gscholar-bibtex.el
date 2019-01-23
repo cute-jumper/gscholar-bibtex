@@ -437,7 +437,7 @@
         (entry-window (get-buffer-window gscholar-bibtex-entry-buffer-name)))
     (when entry-window
       (select-window entry-window)
-      (delete-window)
+      (kill-buffer-and-window)
       (select-window gscholar-window))))
 
 (defun gscholar-bibtex-quit-gscholar-window ()
@@ -452,7 +452,7 @@
             (not (buffer-live-p gscholar-bibtex-caller-buffer)))
         (next-buffer)
       (if caller-window
-          (progn (delete-window) (select-window caller-window))
+          (progn (kill-buffer-and-window) (select-window caller-window))
         (switch-to-buffer gscholar-bibtex-caller-buffer))))
   (message ""))
 
