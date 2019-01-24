@@ -378,8 +378,10 @@
       (bibtex-set-dialect)
       (goto-char (point-min)))
     (unless entry-window
-      (select-window (split-window-below))
-      (switch-to-buffer entry-buffer)
+      (let ((entry-window (select-window (split-window-below))))
+        (set-window-buffer entry-window entry-buffer)
+        (display-buffer-record-window 'window entry-window entry-buffer)
+        (set-window-prev-buffers entry-window nil))
       (select-window gscholar-window)))
   (gscholar-bibtex-show-help))
 
@@ -436,8 +438,7 @@
   (let ((gscholar-window (selected-window))
         (entry-window (get-buffer-window gscholar-bibtex-entry-buffer-name)))
     (when entry-window
-      (select-window entry-window)
-      (kill-buffer-and-window)
+      (quit-restore-window entry-window 'kill)
       (select-window gscholar-window))))
 
 (defun gscholar-bibtex-quit-gscholar-window ()
@@ -447,13 +448,9 @@
         (entry-window (get-buffer-window gscholar-bibtex-entry-buffer-name))
         (caller-window (get-buffer-window gscholar-bibtex-caller-buffer)))
     (gscholar-bibtex-quit-entry-window)
-    (if (or (eq caller-window gscholar-window)
-            (eq caller-window entry-window)
-            (not (buffer-live-p gscholar-bibtex-caller-buffer)))
-        (next-buffer)
+      (quit-restore-window gscholar-window 'kill)
       (if caller-window
-          (progn (kill-buffer-and-window) (select-window caller-window))
-        (switch-to-buffer gscholar-bibtex-caller-buffer))))
+          (select-window caller-window)))
   (message ""))
 
 (defun gscholar-bibtex-install-source (source-name source-symbol)
@@ -758,8 +755,7 @@ only or SOURCE and QUERY for non-interactive lookup."
           (gscholar-bibtex-dispatcher :bibtex-urls search-results))
     (setq gscholar-bibtex-entries-cache
           (make-vector (length gscholar-bibtex-urls-cache) ""))
-    (unless (eq gscholar-buffer (window-buffer (selected-window)))
-      (switch-to-buffer-other-window gscholar-buffer))
+    (pop-to-buffer gscholar-buffer)
     (setq buffer-read-only nil)
     (erase-buffer)
     (goto-char (point-min))
